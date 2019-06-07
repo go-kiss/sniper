@@ -1,0 +1,24 @@
+# 全局日志级别
+LOG_LEVEL = "debug"
+
+# DB 配置，格式为 DB_${NAME}_DSN，内容参考
+# https://github.com/go-sql-driver/mysql#dsn-data-source-name
+# 必须设置 parseTime 选项
+# 通过 ${NAME} 可以获取 DB 连接池
+# 时区问题参考 https://www.jianshu.com/p/3f7fc9093db4
+DB_DEFAULT_DSN = "foo:bar@tcp(127.0.0.1:3306)/baz?parseTime=true&loc=Local"
+
+# MC 配置，格式为 MC_${NAME}_HOSTS = "host1,host2"
+# 通过 ${NAME} 可以获取 MC 连接池
+MC_DEFAULT_HOSTS = "127.0.0.1:11211"
+# 初始连接数
+MC_DEFAULT_INIT_CONNS = 1
+# 最大空闲连接数，设为峰值并发数
+MC_DEFAULT_MAX_IDLE_CONNS = 2
+
+# Redis 配置
+REDIS_DEFAULT_HOST = "127.0.0.1:6379"
+# 初始连接数
+REDIS_DEFAULT_INIT_CONNS = 1
+# 最大连接数
+REDIS_DEFAULT_MAX_CONNS = 2
