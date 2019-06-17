@@ -70,7 +70,7 @@ typedef struct swoole_message {
 - 每个消息都有五字节的二进制前缀
 其他细节请参考 [PROTOCOL-HTTP2](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)。
 
-protobuf 本身是支持 JSON 的，不明白为什么 gRPC 的实现不支持。而支持 stream 接口则是 gRPC 的一大特色，使 gRPC 能够胜任诸如语音实时识别等场景。但这一类场景是比较少见的。我们绝大多数业务场景都是一问一答的。为了实现这个 stream 特性，gRPC 不得不依赖 HTTP2，不得不自行定义了一种有固定五字节头的消息格式。与此同时，gRPC 也就放弃了 HTTP 协议原生的压缩功能，也没法使用 HTTP 协议的 content-length 头传递消息长度。这也是 gRCP 消息五字节头的功能所在，头一个字节表时是否压缩，后四个字节表示消息长度。
+protobuf 本身是支持 JSON 的，不明白为什么 gRPC 的实现不支持。而支持 stream 接口则是 gRPC 的一大特色，使 gRPC 能够胜任诸如语音实时识别等场景。但这一类场景是比较少见的。我们绝大多数业务场景都是一问一答的。为了实现这个 stream 特性，gRPC 不得不依赖 HTTP2，不得不自行定义了一种有固定五字节头的消息格式。与此同时，gRPC 也就放弃了 HTTP 协议原生的压缩功能，也没法使用 HTTP 协议的 content-length 头传递消息长度。这也是 gRCP 消息五字节头的功能所在，头一个字节表示是否压缩，后四个字节表示消息长度。
 
 有个所谓的 **2-8** 原则：
 > 一般只用 **20%** 的代码就可以解决 **80%** 的问题。但要想解决剩下 **20%** 的问题的话，则需要额外 **80%** 的代码。
