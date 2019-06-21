@@ -83,7 +83,7 @@ message DownloadMsg {
 }
 ```
 
-## 接口应射
+## 接口映射
 - 请求方法 **POST**
 - 请求路径 **/twirp**/package.Service/Method
 - 请求协议 http/1.1、http/2
