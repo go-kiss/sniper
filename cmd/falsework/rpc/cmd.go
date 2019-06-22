@@ -68,7 +68,7 @@ func genRPC() {
 	}
 
 	// generate twirp
-	cmd := exec.Command("bash", "-c", "protoc --twirp_out=. --go_out=. "+proto)
+	cmd := exec.Command("protoc", "--twirp_out=.", "--go_out=.", proto)
 	cmd.Dir = rootDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
