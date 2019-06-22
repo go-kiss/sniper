@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/cobra"
 )
@@ -68,7 +69,14 @@ func genRPC() {
 	}
 
 	// generate twirp
-	cmd := exec.Command("bash", "-c", "protoc --twirp_out=. --go_out=. "+proto)
+	var cmd *exec.Cmd
+
+	// Protoc command is different in windows.
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("protoc", "--twirp_out=.", "--go_out=.", proto)
+	} else {
+		cmd = exec.Command("bash", "-c", "protoc --twirp_out=. --go_out=. "+proto)
+	}
 	cmd.Dir = rootDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
