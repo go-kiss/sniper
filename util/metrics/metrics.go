@@ -37,6 +37,21 @@ var (
 	NetPoolTotal *prometheus.GaugeVec
 	// NetPoolIdle 空闲连接总数
 	NetPoolIdle *prometheus.GaugeVec
+
+	// DBMaxOpenConnections 最大 DB 连接数
+	DBMaxOpenConnections *prometheus.GaugeVec
+	// DBOpenConnections 当前 DB 连接总数
+	DBOpenConnections *prometheus.GaugeVec
+	// DBInUseConnections 在用 DB 连接数
+	DBInUseConnections *prometheus.GaugeVec
+	// DBIdleConnections 空闲 DB 连接数
+	DBIdleConnections *prometheus.GaugeVec
+	// DBWaitCount 从 DB 连接池取不到连接需要等待的总数量
+	DBWaitCount *prometheus.CounterVec
+	// DBMaxIdleClosed 因为 SetMaxIdleConns 而被关闭的连接总数量
+	DBMaxIdleClosed *prometheus.CounterVec
+	// DBMaxLifetimeClosed 因为 SetConnMaxLifetime 而被关闭的连接总数量
+	DBMaxLifetimeClosed *prometheus.CounterVec
 )
 
 var defBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1}
@@ -159,4 +174,60 @@ func init() {
 		ConstLabels: map[string]string{"app": conf.AppID},
 	}, []string{"name", "type"})
 	prometheus.MustRegister(NetPoolIdle)
+
+	DBMaxOpenConnections = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   "sniper",
+		Name:        "db_max_open_conns",
+		Help:        "db max open connections",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBMaxOpenConnections)
+
+	DBOpenConnections = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   "sniper",
+		Name:        "db_open_conns",
+		Help:        "db open connections",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBOpenConnections)
+
+	DBInUseConnections = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   "sniper",
+		Name:        "db_in_use_conns",
+		Help:        "db in use connections",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBInUseConnections)
+
+	DBIdleConnections = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   "sniper",
+		Name:        "db_idle_conns",
+		Help:        "db idle connections",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBIdleConnections)
+
+	DBWaitCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   "sniper",
+		Name:        "db_wait_count",
+		Help:        "db wait count",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBWaitCount)
+
+	DBMaxIdleClosed = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   "sniper",
+		Name:        "db_max_idle_closed",
+		Help:        "db max idle closed",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBMaxIdleClosed)
+
+	DBMaxLifetimeClosed = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace:   "sniper",
+		Name:        "db_max_life_time_closed",
+		Help:        "db max life time closed",
+		ConstLabels: map[string]string{"app": conf.AppID},
+	}, []string{"name"})
+	prometheus.MustRegister(DBMaxLifetimeClosed)
 }

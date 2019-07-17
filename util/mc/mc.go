@@ -46,7 +46,7 @@ type MC struct {
 	client *memcache.Client
 	name   string
 
-	// memcache 的连接池状态好多指标是 counter 类型
+	// 连接池状态指标好多是 counter 类型
 	// 对于 counter 类型，promethes 只提供 Add 方法
 	// 所以需要记录上次状态好计算增量
 	stats pool.Stats
@@ -179,6 +179,11 @@ func (mc *MC) Delete(ctx context.Context, key string) error {
 	start := time.Now()
 	err := mc.client.Delete(ctx, key)
 	duration := time.Since(start)
+
+	// 删除不存在的 key 没有副作用
+	if IsCacheMiss(err) {
+		err = nil
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,
@@ -421,8 +426,6 @@ func GatherMetrics() {
 			c.name,
 			"mc",
 		).Set(float64(s.IdleConns))
-
-		log.PP(float64(s.IdleConns))
 
 		c.stats = *s
 	}

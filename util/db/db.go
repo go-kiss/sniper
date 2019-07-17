@@ -24,6 +24,7 @@ var lock = sync.RWMutex{}
 type DB struct {
 	db   *sql.DB
 	name string
+	s    sql.DBStats
 }
 
 // Query sql 查询对象
@@ -336,4 +337,33 @@ func IsDuplicateEntryErr(err error) bool {
 	}
 
 	return false
+}
+
+// GatherMetrics 连接池状态指标
+func GatherMetrics() {
+	lock.RLock()
+	defer lock.RUnlock()
+
+	for _, c := range dbs {
+		s := c.db.Stats()
+
+		metrics.DBMaxOpenConnections.WithLabelValues(c.name).Set(float64(s.MaxOpenConnections))
+		metrics.DBOpenConnections.WithLabelValues(c.name).Set(float64(s.OpenConnections))
+		metrics.DBInUseConnections.WithLabelValues(c.name).Set(float64(s.InUse))
+		metrics.DBIdleConnections.WithLabelValues(c.name).Set(float64(s.Idle))
+
+		if d := s.WaitCount - c.s.WaitCount; d > 0 {
+			metrics.DBWaitCount.WithLabelValues(c.name).Add(float64(d))
+		}
+
+		if d := s.MaxIdleClosed - c.s.MaxIdleClosed; d > 0 {
+			metrics.DBMaxIdleClosed.WithLabelValues(c.name).Add(float64(d))
+		}
+
+		if d := s.MaxLifetimeClosed - c.s.MaxLifetimeClosed; d > 0 {
+			metrics.DBMaxLifetimeClosed.WithLabelValues(c.name).Add(float64(d))
+		}
+
+		c.s = s
+	}
 }

@@ -28,7 +28,6 @@ type myClient struct {
 type Client interface {
 	// Do 发送单个 http 请求
 	Do(ctx context.Context, req *http.Request) (*http.Response, error)
-	// TODO 支持并发发起多个请求
 }
 
 // NewClient 创建 Client 实例

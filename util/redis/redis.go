@@ -10,6 +10,7 @@ import (
 	"sniper/util/log"
 	"sniper/util/metrics"
 
+	"github.com/bilibili/net/pool"
 	"github.com/bilibili/redis"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -25,6 +26,11 @@ type ZSetValue redis.ZSetValue
 type Redis struct {
 	client redis.Client
 	name   string
+
+	// 连接池状态指标好多是 counter 类型
+	// 对于 counter 类型，promethes 只提供 Add 方法
+	// 所以需要记录上次状态好计算增量
+	stats pool.Stats
 }
 
 // ErrNonExist 查询的 key 不存在或者榜单中 member 不存在
@@ -524,4 +530,56 @@ func (r *Redis) ZRemRangeByScore(ctx context.Context, key, min, max string) (i i
 	).Observe(duration.Seconds())
 
 	return
+}
+
+// GatherMetrics 连接池状态指标
+func GatherMetrics() {
+	lock.RLock()
+	defer lock.RUnlock()
+
+	const name = "redis"
+
+	for _, c := range rs {
+		s := c.client.PoolStats()
+
+		if d := s.Hits - c.stats.Hits; d >= 0 {
+			metrics.NetPoolHits.WithLabelValues(
+				c.name,
+				name,
+			).Add(float64(d))
+		}
+
+		if d := s.Misses - c.stats.Misses; d >= 0 {
+			metrics.NetPoolMisses.WithLabelValues(
+				c.name,
+				name,
+			).Add(float64(d))
+		}
+
+		if d := s.Timeouts - c.stats.Timeouts; d >= 0 {
+			metrics.NetPoolTimeouts.WithLabelValues(
+				c.name,
+				name,
+			).Add(float64(d))
+		}
+
+		if d := s.StaleConns - c.stats.StaleConns; d >= 0 {
+			metrics.NetPoolStale.WithLabelValues(
+				c.name,
+				name,
+			).Add(float64(d))
+		}
+
+		metrics.NetPoolTotal.WithLabelValues(
+			c.name,
+			name,
+		).Set(float64(s.TotalConns))
+
+		metrics.NetPoolIdle.WithLabelValues(
+			c.name,
+			name,
+		).Set(float64(s.IdleConns))
+
+		c.stats = *s
+	}
 }
