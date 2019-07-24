@@ -79,7 +79,7 @@ gRPC 的 stream 接口就是剩下的 **20% 的问题**。
 
 gRPC 还有个 web 支持的问题。浏览器的 js 无法使用 HTTP2 的特性，所以不能直接与 gRPC 服务通信。于是有了 [grpc-web](https://github.com/grpc/grpc-web)，还有 [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway)。
 
-所以，如果没有 stream 接口需求，则完全没有必要使用 gRPC；如果直的有这类需求，也不可能太多，直接使用原生 TCP/WebSocket 协议开发也不是难事。
+所以，如果没有 stream 接口需求，则完全没有必要使用 gRPC；如果真的有这类需求，也不可能太多，直接使用原生 TCP/WebSocket 协议开发也不是难事。
 
 最终我们选择了 [twirp](https://github.com/twitchtv/twirp)。twirp 可以看作是简化版的 gRPC，同样用 protobuf 描述，不依赖 HTTP2，同时支持 protobuf 和 JSON，没有五字节的二进制前缀。但我们对原生的 twirp 做了修改，形成了自己的[版本](https://github.com/bilibili/twirp)，主要改动就是添加了对 **www-form-urlencoded** 编码格式的支持，这是移动端的历史包袱导致的，没办法。
 
