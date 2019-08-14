@@ -47,24 +47,14 @@ func NewLog() *twirp.ServerHooks {
 				status,
 			).Observe(duration.Seconds())
 
-			logger := log.Get(ctx).WithFields(log.Fields{
+			log.Get(ctx).WithFields(log.Fields{
 				"path":     path,
 				"status":   status,
 				"params":   req.Form.Encode(),
 				"cost":     duration.Seconds(),
 				"biz_code": bizCode,
 				"biz_msg":  bizMsg,
-			})
-
-			msg := "new rpc"
-			switch status[0] {
-			case '5': // 5xx
-				logger.Error(msg)
-			case '4': // 4xx
-				logger.Warn(msg)
-			default:
-				logger.Info(msg)
-			}
+			}).Info("new rpc")
 		},
 		Error: func(ctx context.Context, err twirp.Error) context.Context {
 			c := twirp.ServerHTTPStatusFromErrorCode(err.Code())

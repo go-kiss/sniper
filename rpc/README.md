@@ -144,10 +144,10 @@ find rpc -name '*.proto' -exec protoc --twirp_out=. --go_out=. {} \;
 
 ## 自动注册
 
-sniper 提供的 falsework 脚手架可以自动生成 proto 模版、server 模版，并注册路由。
+sniper 提供的脚手架可以自动生成 proto 模版、server 模版，并注册路由。
 运行以下命令：
 ```bash
-go run main.go falsework rpc --service=foo
+go run cmd/sniper/main.go rpc --service=foo
 ```
 会自动生成：
 ```

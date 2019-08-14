@@ -68,10 +68,11 @@ func (c *myClient) Do(ctx context.Context, req *http.Request) (resp *http.Respon
 	}
 
 	log.Get(ctx).Debugf(
-		"[HTTP] method:%s url:%s status:%d",
+		"[HTTP] method:%s url:%s status:%d query:%s",
 		req.Method,
 		url,
 		status,
+		req.URL.RawQuery,
 	)
 
 	span.SetTag(string(ext.Component), "http")
