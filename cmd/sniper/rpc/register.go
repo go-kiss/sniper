@@ -62,6 +62,7 @@ func parseAndUpdateHTTPFile() {
 			continue
 		}
 
+		//在version="0"时只注册内部服务 version!="0"时只注册外部服务
 		if gen.Name.Name == "initMux" && version == "0" {
 			continue
 		}
