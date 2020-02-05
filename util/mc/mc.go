@@ -363,9 +363,20 @@ func (mc *MC) Touch(ctx context.Context, key string, seconds int32) error {
 	return errors.Wrap(err)
 }
 
-// Reset 重置 memc
+// Reset 关闭所有 MC 连接
+// 新调用 Get 方法时会使用最新 MC 配置创建连接
+//
+// 如果在配置中开启 HOT_LOAD_MC 开关，则每次下发配置都会重置 MC 连接！
 func Reset() {
-	for k, c := range mcs {
+	if !conf.GetBool("HOT_LOAD_MC") {
+		return
+	}
+
+	lock.Lock()
+	oldMCs := mcs
+	mcs = make(map[string]*MC, 4)
+	lock.Unlock()
+	for k, c := range oldMCs {
 		c.client.Close()
 		delete(mcs, k)
 	}

@@ -33,7 +33,7 @@ err := c.ExecTx(ctx, func(ctx context.Context, tx db.Conn) error {
 
 	sql := "insert into foo(id) values(2)"
 	q := SQLUpdate("foo", sql)
-	result, err = c.ExecContext(ctx, q)
+	result, err = tx.ExecContext(ctx, q)
 	if err != nil {
 		return err
 	}

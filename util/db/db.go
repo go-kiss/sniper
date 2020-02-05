@@ -119,8 +119,19 @@ func Get(ctx context.Context, name string) *DB {
 
 // Reset 关闭所有 DB 连接
 // 新调用 Get 方法时会使用最新 DB 配置创建连接
+//
+// 如果在配置中开启 HOT_LOAD_DB 开关，则每次下发配置都会重置 DB 连接！
 func Reset() {
-	for k, db := range dbs {
+	if !conf.GetBool("HOT_LOAD_DB") {
+		return
+	}
+
+	lock.Lock()
+	oldDBs := dbs
+	dbs = make(map[string]*DB, 4)
+	lock.Unlock()
+
+	for k, db := range oldDBs {
 		db.db.Close()
 		delete(dbs, k)
 	}

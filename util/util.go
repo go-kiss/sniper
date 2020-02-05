@@ -19,6 +19,8 @@ func GatherMetrics() {
 // Reset all utils
 func Reset() {
 	log.Reset()
+	db.Reset()
+	mc.Reset()
 }
 
 // Stop all utils
