@@ -15,6 +15,7 @@ import (
 	"sniper/util/errors"
 	"sniper/util/log"
 	"sniper/util/metrics"
+	"sniper/util/trace"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -47,11 +48,7 @@ func (c *myClient) Do(ctx context.Context, req *http.Request) (resp *http.Respon
 
 	req = req.WithContext(ctx)
 
-	opentracing.GlobalTracer().Inject(
-		span.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(req.Header),
-	)
+	trace.InjectTraceHeader(span.Context(), req)
 
 	start := time.Now()
 	resp, err = c.cli.Do(req)

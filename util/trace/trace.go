@@ -2,41 +2,108 @@ package trace
 
 import (
 	"context"
+	"io"
 	"net/http"
-	"os"
-	"strings"
+
+	"sniper/util/conf"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/config"
+	"github.com/uber/jaeger-client-go/log"
+	"github.com/uber/jaeger-lib/metrics"
 )
 
+var closer io.Closer
+
 func init() {
-	if addr := os.Getenv("DAPPER_ADDR"); addr == "" {
-		opentracing.SetGlobalTracer(defaultAmyTracer)
-	}
-}
-
-// 如果使用 jager 则需改为 uber-trace-id
-var traceHeader = "bili-trace-id"
-
-// GetTraceID 查询 trace_id
-func GetTraceID(ctx context.Context) string {
-	traceID := "no-trace-id"
-
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		headers := http.Header{}
-
-		opentracing.GlobalTracer().Inject(
-			span.Context(),
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(headers),
-		)
-
-		trace := headers.Get(traceHeader)
-		i := strings.IndexByte(trace, ':')
-		if i > 0 {
-			traceID = trace[:i]
+	// agent 部署在 k8s 的宿主机
+	// 宿主机需要使用 HOST 环境变量获取
+	host := conf.GetString("HOST")
+	if host == "" {
+		host = conf.GetString("JAEGER_AGENT_HOST")
+		if host == "" {
+			host = "127.0.0.1"
 		}
 	}
 
-	return traceID
+	port := conf.GetString("JAEGER_AGENT_PORT")
+	if port == "" {
+		port = "6831"
+	}
+
+	cfg := config.Configuration{
+		ServiceName: conf.AppID,
+		Sampler: &config.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		},
+		Reporter: &config.ReporterConfig{
+			LocalAgentHostPort: host + ":" + port,
+		},
+	}
+
+	tracer, c, err := cfg.NewTracer(
+		config.Logger(log.NullLogger),
+		config.Metrics(metrics.NullFactory),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	closer = c
+	opentracing.SetGlobalTracer(tracer)
+}
+
+// GetTraceID 查询 trace_id
+func GetTraceID(ctx context.Context) (traceID string) {
+	traceID = "no-trace-id"
+
+	span := opentracing.SpanFromContext(ctx)
+	if span == nil {
+		return
+	}
+
+	jctx, ok := (span.Context()).(jaeger.SpanContext)
+	if !ok {
+		return
+	}
+
+	traceID = jctx.TraceID().String()
+
+	return
+}
+
+// InjectTrace 注入 OpenTracing 头信息
+func InjectTraceHeader(ctx opentracing.SpanContext, req *http.Request) {
+	opentracing.GlobalTracer().Inject(
+		ctx,
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(req.Header),
+	)
+
+	jctx, ok := ctx.(jaeger.SpanContext)
+	if !ok {
+		return
+	}
+
+	// 兼容主站老的 trace 逻辑
+	req.Header["Bili-Trace-Id"] = req.Header["Uber-Trace-Id"]
+
+	// Envoy 使用 Zipkin 风格头信息
+	// https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/observability/tracing
+	req.Header.Set("x-b3-traceid", jctx.TraceID().String())
+	req.Header.Set("x-b3-spanid", jctx.SpanID().String())
+	req.Header.Set("x-b3-parentspanid", jctx.ParentID().String())
+	if jctx.IsSampled() {
+		req.Header.Set("x-b3-sampled", "1")
+	}
+	if jctx.IsDebug() {
+		req.Header.Set("x-b3-flags", "1")
+	}
+}
+
+// Stop 停止 trace 协程
+func Stop() {
+	closer.Close()
 }
