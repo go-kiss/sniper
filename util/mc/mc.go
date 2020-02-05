@@ -90,7 +90,7 @@ func (mc *MC) Add(ctx context.Context, item *Item) error {
 	logger := log.Get(ctx)
 
 	logger.Debugf(
-		"[MC:%s] Add key:%s, value:%s, exptime:%d, flag:%d",
+		"[MC] name:%s Add key:%s, value:%s, exptime:%d, flag:%d",
 		mc.name,
 		item.Key,
 		string(item.Value),
@@ -101,6 +101,15 @@ func (mc *MC) Add(ctx context.Context, item *Item) error {
 	start := time.Now()
 	err := mc.client.Add(ctx, (*memcache.Item)(item))
 	duration := time.Since(start)
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf(
+			"[MC] name:%s Add key:%s, error:%+v",
+			mc.name,
+			item.Key,
+			err,
+		)
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,
@@ -120,7 +129,7 @@ func (mc *MC) CompareAndSwap(ctx context.Context, item *Item) error {
 	logger := log.Get(ctx)
 
 	logger.Debugf(
-		"[MC:%s] CompareAndSwap key:%s, value:%s, exptime:%d, flag:%d",
+		"[MC] name:%s CompareAndSwap key:%s, value:%s, exptime:%d, flag:%d",
 		mc.name,
 		item.Key,
 		string(item.Value),
@@ -131,6 +140,15 @@ func (mc *MC) CompareAndSwap(ctx context.Context, item *Item) error {
 	start := time.Now()
 	err := mc.client.CompareAndSwap(ctx, (*memcache.Item)(item))
 	duration := time.Since(start)
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf(
+			"[MC] name:%s CompareAndSwap key:%s, error:%+v",
+			mc.name,
+			item.Key,
+			err,
+		)
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,
@@ -150,11 +168,15 @@ func (mc *MC) Decrement(ctx context.Context, key string, delta uint64) (uint64, 
 
 	logger := log.Get(ctx)
 
-	logger.Debugf("[MC:%s] Decrement %s %d", mc.name, key, delta)
+	logger.Debugf("[MC] name:%s Decrement key:%s delta:%d", mc.name, key, delta)
 
 	start := time.Now()
 	r, err := mc.client.Decrement(ctx, key, delta)
 	duration := time.Since(start)
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf("[MC] name:%s Decrement key:%s delta:%d error:%+v", mc.name, key, delta, err)
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,
@@ -174,7 +196,7 @@ func (mc *MC) Delete(ctx context.Context, key string) error {
 
 	logger := log.Get(ctx)
 
-	logger.Debugf("[MC:%s] Delete %s", mc.name, key)
+	logger.Debugf("[MC] name:%s Delete %s", mc.name, key)
 
 	start := time.Now()
 	err := mc.client.Delete(ctx, key)
@@ -183,6 +205,10 @@ func (mc *MC) Delete(ctx context.Context, key string) error {
 	// 删除不存在的 key 没有副作用
 	if IsCacheMiss(err) {
 		err = nil
+	}
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf("[MC] name:%s Delete %s, error:%+v", mc.name, key, err)
 	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
@@ -203,7 +229,7 @@ func (mc *MC) Get(ctx context.Context, key string) (*Item, error) {
 
 	logger := log.Get(ctx)
 
-	logger.Debugf("[MC:%s] Get %s", mc.name, key)
+	logger.Debugf("[MC] name:%s Get %s", mc.name, key)
 
 	start := time.Now()
 	i, err := mc.client.Get(ctx, key)
@@ -218,6 +244,7 @@ func (mc *MC) Get(ctx context.Context, key string) (*Item, error) {
 }
 
 // GetMulti mget
+// FIXME keys 为空的时候会报错
 func (mc *MC) GetMulti(ctx context.Context, keys []string) (map[string]*Item, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "GetMulti")
 	defer span.Finish()
@@ -227,7 +254,7 @@ func (mc *MC) GetMulti(ctx context.Context, keys []string) (map[string]*Item, er
 
 	logger := log.Get(ctx)
 
-	logger.Debugf("[MC:%s] GetMulti %s", mc.name, keys)
+	logger.Debugf("[MC] name:%s GetMulti %s", mc.name, keys)
 
 	start := time.Now()
 	i, err := mc.client.GetMulti(ctx, keys)
@@ -256,7 +283,7 @@ func (mc *MC) Increment(ctx context.Context, key string, delta uint64) (uint64, 
 
 	logger := log.Get(ctx)
 
-	logger.Debugf("[MC:%s] Increment %s %d", mc.name, key, delta)
+	logger.Debugf("[MC] name:%s Increment key:%s delta:%d ", mc.name, key, delta)
 
 	start := time.Now()
 	c := mc.client
@@ -268,6 +295,10 @@ func (mc *MC) Increment(ctx context.Context, key string, delta uint64) (uint64, 
 		}
 	}
 	duration := time.Since(start)
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf("[MC] name:%s Increment key:%s delta:%d error:%+v", mc.name, key, delta, err)
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,
@@ -288,7 +319,7 @@ func (mc *MC) Replace(ctx context.Context, item *Item) error {
 	logger := log.Get(ctx)
 
 	logger.Debugf(
-		"[MC:%s] Replace key:%s, value:%s, exptime:%d, flag:%d",
+		"[MC] name:%s Replace key:%s, value:%s, exptime:%d, flag:%d",
 		mc.name,
 		item.Key,
 		string(item.Value),
@@ -299,6 +330,15 @@ func (mc *MC) Replace(ctx context.Context, item *Item) error {
 	start := time.Now()
 	err := mc.client.Replace(ctx, (*memcache.Item)(item))
 	duration := time.Since(start)
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf(
+			"[MC] name:%s Replace key:%s, error:%+v",
+			mc.name,
+			item.Key,
+			err,
+		)
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,
@@ -319,7 +359,7 @@ func (mc *MC) Set(ctx context.Context, item *Item) error {
 	logger := log.Get(ctx)
 
 	logger.Debugf(
-		"[MC:%s] Set key:%s, value:%s, exptime:%d, flag:%d",
+		"[MC] name:%s Set key:%s, value:%s, exptime:%d, flag:%d",
 		mc.name,
 		item.Key,
 		string(item.Value),
@@ -336,6 +376,15 @@ func (mc *MC) Set(ctx context.Context, item *Item) error {
 		"Set",
 	).Observe(duration.Seconds())
 
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf(
+			"[MC] name:%s Set key:%s, error:%+v",
+			mc.name,
+			item.Key,
+			err,
+		)
+	}
+
 	return errors.Wrap(err)
 }
 
@@ -349,11 +398,20 @@ func (mc *MC) Touch(ctx context.Context, key string, seconds int32) error {
 
 	logger := log.Get(ctx)
 
-	logger.Debugf("[MC:%s] Touch %s %d", mc.name, key, seconds)
+	logger.Debugf("[MC] name:%s Touch %s %d", mc.name, key, seconds)
 
 	start := time.Now()
 	err := mc.client.Touch(ctx, key, seconds)
 	duration := time.Since(start)
+
+	if !memcache.IsResumableErr(err) {
+		logger.Errorf(
+			"[MC] name:%s Touch key:%s, error:%+v",
+			mc.name,
+			key,
+			err,
+		)
+	}
 
 	metrics.MCDurationsSeconds.WithLabelValues(
 		mc.name,

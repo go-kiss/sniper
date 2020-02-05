@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +33,11 @@ type Query struct {
 	table   string
 	sql     string
 	sqlType string
+}
+
+// 清理分表中的数字，否则上报的指标太多，prometheus 算不出来，而且也不好统计
+func (q *Query) trimTableNum() string {
+	return strings.TrimRight(q.table, "0123456789")
 }
 
 // Conn 简单 DB 接口。用于统一非事务和事务业务逻辑
@@ -105,9 +111,14 @@ func Get(ctx context.Context, name string) *DB {
 		log.Get(ctx).Panic(err)
 	}
 
-	sqldb.SetMaxOpenConns(10)
+	// 不能设太多，数据库最大连接数总共不宜超过 2k
+	maxOpenConns := conf.GetInt("DB_" + name + "_MAX_OPEN_CONNS")
+	if maxOpenConns == 0 {
+		maxOpenConns = 20
+	}
+	sqldb.SetMaxOpenConns(maxOpenConns)
 	sqldb.SetMaxIdleConns(10)
-	sqldb.SetConnMaxLifetime(60 * time.Second)
+	sqldb.SetConnMaxLifetime(1 * time.Hour)
 
 	db = &DB{db: sqldb, name: name}
 	lock.Lock()
@@ -143,8 +154,6 @@ func (db *DB) ExecContext(ctx context.Context, query Query, args ...interface{})
 }
 
 func execContext(ctx context.Context, name string, db unionDB, query Query, args []interface{}) (sql.Result, error) {
-	log.Get(ctx).Debugf("[DB:%s] sql:%s args:%v", name, query.sql, args)
-
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ExecContext")
 	defer span.Finish()
 
@@ -156,11 +165,15 @@ func execContext(ctx context.Context, name string, db unionDB, query Query, args
 	r, err := db.ExecContext(ctx, query.sql, args...)
 	duration := time.Since(start)
 
+	cost := duration.Seconds()
+
+	log.Get(ctx).WithField("cost", cost).Debugf("[DB] name:%s sql:%s args:%v", name, query.sql, args)
+
 	metrics.DBDurationsSeconds.WithLabelValues(
 		name,
-		query.table,
+		query.trimTableNum(),
 		query.sqlType,
-	).Observe(duration.Seconds())
+	).Observe(cost)
 
 	return r, errors.Wrap(err)
 }
@@ -171,8 +184,6 @@ func (db *DB) QueryContext(ctx context.Context, query Query, args ...interface{}
 }
 
 func queryContext(ctx context.Context, name string, db unionDB, query Query, args []interface{}) (*sql.Rows, error) {
-	log.Get(ctx).Debugf("[DB:%s] sql:%s args:%v", name, query.sql, args)
-
 	span, ctx := opentracing.StartSpanFromContext(ctx, "QueryContext")
 	defer span.Finish()
 
@@ -184,11 +195,15 @@ func queryContext(ctx context.Context, name string, db unionDB, query Query, arg
 	r, err := db.QueryContext(ctx, query.sql, args...)
 	duration := time.Since(start)
 
+	cost := duration.Seconds()
+
+	log.Get(ctx).WithField("cost", cost).Debugf("[DB] name:%s sql:%s args:%v", name, query.sql, args)
+
 	metrics.DBDurationsSeconds.WithLabelValues(
 		name,
-		query.table,
+		query.trimTableNum(),
 		query.sqlType,
-	).Observe(duration.Seconds())
+	).Observe(cost)
 
 	return r, errors.Wrap(err)
 }
@@ -199,8 +214,6 @@ func (db *DB) QueryRowContext(ctx context.Context, query Query, args ...interfac
 }
 
 func queryRowContext(ctx context.Context, name string, db unionDB, query Query, args []interface{}) *sql.Row {
-	log.Get(ctx).Debugf("[DB:%s] %s %v", name, query.sql, args)
-
 	span, ctx := opentracing.StartSpanFromContext(ctx, "QueryRowContext")
 	defer span.Finish()
 
@@ -212,11 +225,15 @@ func queryRowContext(ctx context.Context, name string, db unionDB, query Query, 
 	r := db.QueryRowContext(ctx, query.sql, args...)
 	duration := time.Since(start)
 
+	cost := duration.Seconds()
+
+	log.Get(ctx).WithField("cost", cost).Debugf("[DB] name:%s sql:%s args:%v", name, query.sql, args)
+
 	metrics.DBDurationsSeconds.WithLabelValues(
 		name,
-		query.table,
+		query.trimTableNum(),
 		query.sqlType,
-	).Observe(duration.Seconds())
+	).Observe(cost)
 
 	return r
 }
