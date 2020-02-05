@@ -19,7 +19,7 @@ var loginHooks = twirp.ChainHooks(
 	hook.NewLog(),
 )
 
-func initMux(mux *http.ServeMux) {
+func initMux(mux *http.ServeMux, isInternal bool) {
 }
 
 func initInternalMux(mux *http.ServeMux) {

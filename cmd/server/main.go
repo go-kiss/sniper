@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	_ "net/http/pprof" // 注册 pprof 接口
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -147,7 +146,6 @@ func startServer() {
 			timeout = d
 		}
 	}
-
 
 	handler := http.TimeoutHandler(panicHandler{handler: mux}, timeout, "timeout")
 
