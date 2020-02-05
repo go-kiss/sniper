@@ -34,6 +34,18 @@ const (
 	ManageUserKey
 	// BuvidKey 非登录用户标识
 	BuvidKey
+	// CookieKey web 用户登录令牌
+	CookieKey
+	// CompanyAppKeyKey
+	CompanyAppKeyKey
+	// AppKeyKey 接口签名标识
+	AppKeyKey
+	// TsKey 时间戳
+	TSKey
+	// SignKey 签名
+	SignKey
+	// IsValidSignKeyKey 签名正确则置为 true
+	IsValidSignKeyKey
 )
 
 // GetUserID 获取当前登录用户 ID
@@ -58,6 +70,12 @@ func GetUserPort(ctx context.Context) string {
 func GetPlatform(ctx context.Context) string {
 	platform, _ := ctx.Value(PlatformKey).(string)
 	return platform
+}
+
+// GetPlatform 获取用户平台
+func GetCompanyAppKey(ctx context.Context) string {
+	companyKey, _ := ctx.Value(CompanyAppKeyKey).(string)
+	return companyKey
 }
 
 // IsIOSPlatform 判断是否为 IOS 平台
@@ -95,7 +113,7 @@ func GetVersion(ctx context.Context) string {
 	return version
 }
 
-// GetAccessKey 获取客户端版本
+// GetAccessKey 获取客户端认证令牌
 func GetAccessKey(ctx context.Context) string {
 	key, _ := ctx.Value(AccessKeyKey).(string)
 	return key
@@ -116,4 +134,23 @@ func GetManageUser(ctx context.Context) string {
 func GetBuvid(ctx context.Context) string {
 	buvid, _ := ctx.Value(BuvidKey).(string)
 	return buvid
+}
+
+// GetCookie 获取 web cookie
+func GetCookie(ctx context.Context) string {
+	key, _ := ctx.Value(CookieKey).(string)
+	return key
+}
+
+func GetSign(ctx context.Context) (appkey, ts, sign string) {
+	appkey, _ = ctx.Value(AppKeyKey).(string)
+	ts, _ = ctx.Value(TSKey).(string)
+	sign, _ = ctx.Value(SignKey).(string)
+	return
+}
+
+// IsValidSignKey 判断业务签名是否正确
+func IsValidSignKey(ctx context.Context) bool {
+	valid, _ := ctx.Value(IsValidSignKeyKey).(bool)
+	return valid
 }
