@@ -3,6 +3,8 @@ package conf
 
 import (
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -91,6 +93,39 @@ func GetString(key string) string {
 	return viper.GetString(key)
 }
 
+// GetStringSlice 获取字符串列表
+// a,b,c => []string{"a", "b", "c"}
+func GetStringSlice(key string) (s []string) {
+	value := GetString(key)
+	if value == "" {
+		return
+	}
+
+	for _, v := range strings.Split(value, ",") {
+		s = append(s, v)
+	}
+	return
+}
+
+// GetIntSlice 获取数字列表
+// 1,2,3 => []int64{1,2,3}
+func GetIntSlice(key string) (s []int64, err error) {
+	value := GetString(key)
+	if value == "" {
+		return
+	}
+
+	var i int64
+	for _, v := range strings.Split(value, ",") {
+		i, err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return
+		}
+		s = append(s, i)
+	}
+	return
+}
+
 // GetInt 获取整数配置
 func GetInt(key string) int {
 	return viper.GetInt(key)
@@ -109,6 +144,22 @@ func GetInt64(key string) int64 {
 // GetDuration 获取时间配置
 func GetDuration(key string) time.Duration {
 	return viper.GetDuration(key)
+}
+
+// GetTime 查询时间配置
+// 默认时间格式为 "2006-01-02 15:04:05"，conf.GetTime("FOO_BEGIN")
+// 如果需要指定时间格式，则可以多传一个参数，conf.GetString("FOO_BEGIN", "2006")
+//
+// 配置不存在或时间格式错误返回**空时间对象**
+// 使用本地时区
+func GetTime(key string, args ...string) time.Time {
+	fmt := "2006-01-02 15:04:05"
+	if len(args) == 1 {
+		fmt = args[0]
+	}
+
+	t, _ := time.ParseInLocation(fmt, viper.GetString(key), time.Local)
+	return t
 }
 
 // GetBool 获取配置布尔配置
