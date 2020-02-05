@@ -16,6 +16,11 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 )
 
+const (
+	// FlagNX Not Exist
+	FlagNX = redis.FlagNX
+)
+
 // Item 值对象
 type Item redis.Item
 
@@ -115,6 +120,28 @@ func (r *Redis) MGet(ctx context.Context, keys []string) (items map[string]*Item
 	).Observe(duration.Seconds())
 
 	return
+}
+
+// Eval 执行lua脚本
+func (r *Redis) Eval(ctx context.Context, script string, keys []string, argvs ...interface{}) (*redis.EvalReturn, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Eval")
+	defer span.Finish()
+	span.SetTag(string(ext.Component), "redis")
+	span.SetTag(string(ext.DBInstance), r.name)
+	span.SetTag("redis.key", "")
+
+	log.Get(ctx).Debugf("[Redis:%s] Eval %s", r.name, script)
+
+	start := time.Now()
+	val, err := r.client.Eval(ctx, script, keys, argvs...)
+	duration := time.Since(start)
+
+	metrics.RedisDurationsSeconds.WithLabelValues(
+		r.name,
+		"Eval",
+	).Observe(duration.Seconds())
+
+	return val, err
 }
 
 // Set 设置单个缓存
