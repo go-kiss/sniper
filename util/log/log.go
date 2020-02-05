@@ -64,6 +64,7 @@ func Get(ctx context.Context) Logger {
 		"instance_id": conf.Hostname,
 		"trace_id":    ctx.Value(ctxkit.TraceIDKey),
 		"uid":         fmt.Sprint(ctx.Value(ctxkit.UserIDKey)),
+		"ip":          ctx.Value(ctxkit.UserIPKey),
 		"platform":    ctx.Value(ctxkit.PlatformKey),
 		"device":      ctx.Value(ctxkit.DeviceKey),
 		"version":     ctx.Value(ctxkit.VersionKey),
