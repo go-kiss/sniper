@@ -96,6 +96,8 @@ message DownloadMsg {
   - json
   - protobuf
 
+最新版的[protobuf-gen-twirp](https://github.com/bilibili/twirp/tree/master/protoc-gen-twirp)已经支持使用 prefix 参数自定义接口前缀了。
+
 表单请求
 ```
 POST /twirp/user.v0.Echo/Hello HTTP/1.1
