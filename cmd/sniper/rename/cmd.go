@@ -10,24 +10,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	rootDir, rootPkg string
-)
+var rootPkg string
 
 func init() {
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
-	Cmd.Flags().StringVar(&rootDir, "root", wd, "项目根目录")
 	Cmd.Flags().StringVar(&rootPkg, "package", "", "项目总包名")
 
 	Cmd.MarkFlagRequired("package")
 }
 
-func getModuleName(wd string) string {
-	f, err := os.Open(wd + "/go.mod")
+func getModuleName() string {
+	f, err := os.Open("go.mod")
 	if err != nil {
 		panic(err)
 	}
@@ -56,7 +48,7 @@ var Cmd = &cobra.Command{
 			panic("package cannot be empty")
 		}
 
-		module := getModuleName(rootDir)
+		module := getModuleName()
 		module = strings.ReplaceAll(module, ".", "\\.")
 
 		sh := fmt.Sprintf(`grep --exclude .git -rlI '"%s/' . | xargs sed -i '' 's#"%s/#"%s/#'`, module, module, rootPkg)
@@ -66,5 +58,13 @@ var Cmd = &cobra.Command{
 		c1.Stdout = os.Stdout
 		c1.Stderr = os.Stderr
 		c1.Run()
+
+		sh = fmt.Sprintf(`sed -i '' 's#module %s#module %s#' go.mod`, module, rootPkg)
+
+		c2 := exec.Command("bash")
+		c2.Stdin = strings.NewReader(sh)
+		c2.Stdout = os.Stdout
+		c2.Stderr = os.Stderr
+		c2.Run()
 	},
 }
