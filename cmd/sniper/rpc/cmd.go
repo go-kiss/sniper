@@ -3,10 +3,12 @@ package rpc
 // 几乎所有代码由欧阳完成，我只是搬运过来。
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -31,13 +33,35 @@ func init() {
 		panic(err)
 	}
 
+	module := getModuleName(wd)
+
 	Cmd.Flags().StringVar(&rootDir, "root", wd, "项目根目录")
-	Cmd.Flags().StringVar(&rootPkg, "package", "sniper", "项目总包名")
+	Cmd.Flags().StringVar(&rootPkg, "package", module, "项目总包名")
 	Cmd.Flags().StringVar(&server, "service", "", "服务名")
 	Cmd.Flags().StringVar(&version, "version", "1", "服务版本")
 	Cmd.Flags().BoolVar(&needLogin, "need-login", false, "是否校验登录态")
 
 	Cmd.MarkFlagRequired("service")
+}
+
+func getModuleName(wd string) string {
+	f, err := os.Open(wd + "/go.mod")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	l, err := bufio.NewReader(f).ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	fields := strings.Fields(l)
+	module := "sniper"
+	if len(fields) == 2 {
+		module = fields[1]
+	}
+
+	return module
 }
 
 // Cmd 接口生成工具

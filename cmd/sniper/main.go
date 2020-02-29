@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sniper/cmd/sniper/rename"
 	"sniper/cmd/sniper/rpc"
 
 	"github.com/spf13/cobra"
@@ -8,6 +9,7 @@ import (
 
 func init() {
 	Cmd.AddCommand(rpc.Cmd)
+	Cmd.AddCommand(rename.Cmd)
 }
 
 // Cmd 脚手架命令

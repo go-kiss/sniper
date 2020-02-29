@@ -20,7 +20,7 @@ func init() {
 		return nil
 	})
 
-	http("baz", "* * * * *", func(ctx context.Context) error {
+	http("baz", "0 18-23 * * *", func(ctx context.Context) error {
 		fmt.Printf("run http task @%v\n", time.Now())
 		return nil
 	})
