@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
-	"io/ioutil"
-	"os"
 	"text/template"
 )
 
@@ -19,16 +16,13 @@ var blockStmt *ast.BlockStmt
 var importRPCSpec *ast.ImportSpec
 var importServerSpec *ast.ImportSpec
 
-var fset = token.NewFileSet()
-
 const regServerTpl = `
 package main
-func main(){
-	test := "test"
+func main() {
 	{
-		server := &{{.Server}}server{{.Version}}.Server{}
-		handler := {{.Server}}_v{{.Version}}.New{{.UpperServer}}Server(server, {{.Hooks}})
-		mux.Handle({{.Server}}_v{{.Version}}.{{.UpperServer}}PathPrefix, handler)
+		server := &{{.Server}}server{{.Version}}.{{.Service}}Server{}
+		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, {{.Hooks}})
+		mux.Handle({{.Server}}_v{{.Version}}.{{.Service}}PathPrefix, handler)
 	}
 }
 `
@@ -42,10 +36,10 @@ import(
 `
 
 type regServerTplArgs struct {
-	Server      string
-	Hooks       string
-	Version     string
-	UpperServer string
+	Server  string
+	Hooks   string
+	Version string
+	Service string
 }
 
 type importTplArgs struct {
@@ -54,50 +48,21 @@ type importTplArgs struct {
 	ServerPath string
 }
 
-func parseAndUpdateHTTPFile() {
-	addServer := parseFile(httpFile)
-	for _, decl := range addServer.Decls {
-		gen, ok := decl.(*ast.FuncDecl)
-		if !ok {
+func serverImported(imports []*ast.ImportSpec) bool {
+	rpc := server + "_v" + version
+	for _, i := range imports {
+		if i.Name == nil {
 			continue
 		}
 
-		if gen.Name.Name == "initMux" && version == "0" {
-			continue
+		if i.Name.Name == rpc {
+			return true
 		}
-		if gen.Name.Name == "initInternalMux" && version != "0" {
-			continue
-		}
-		// 判断服务是否已经注册
-		if serverRegistered(gen) {
-			return
-		}
-		// 生成头文件模版
-		genPKGTemplate()
-		// 生成server模版
-		genServerTemplate()
-		// 追加server
-		appendServer(gen)
 	}
-	// 追加文件头
-	appendImportPKGs(addServer)
-	f, err := os.OpenFile(httpFile, os.O_WRONLY|os.O_CREATE, 0766)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	if err := printer.Fprint(f, fset, addServer); err != nil {
-		panic(err)
-	}
+	return false
 }
 
-// 构造新加的server的文法
 func appendServer(gen *ast.FuncDecl) {
-	var serverList []ast.Stmt
-	for _, server := range gen.Body.List {
-		serverList = append(serverList, server)
-	}
-
 	var lastPos token.Pos
 
 	if l := len(gen.Body.List); l > 0 {
@@ -110,11 +75,9 @@ func appendServer(gen *ast.FuncDecl) {
 
 	updateBodyPOS(lastPos)
 
-	serverList = append(serverList, blockStmt)
-	gen.Body.List = serverList
+	gen.Body.List = append(gen.Body.List, blockStmt)
 }
 
-// 追加import
 func appendImportPKGs(file *ast.File) {
 	for _, decl := range file.Decls {
 		imp, ok := decl.(*ast.GenDecl)
@@ -152,48 +115,24 @@ func serverRegistered(gen *ast.FuncDecl) bool {
 		if !ok {
 			continue
 		}
-		if se.X.(*ast.Ident).Name == server+"server"+version {
-			return true
+		if se.X.(*ast.Ident).Name != server+"server"+version {
+			continue
 		}
+		if se.Sel.Name != upper1st(service)+"Server" {
+			continue
+		}
+		return true
 	}
 	return false
 }
 
-func parseFile(file string) *ast.File {
-	b, err := ioutil.ReadFile(file)
-	if err != nil {
-		panic(err)
-	}
-
-	server, err := parser.ParseFile(fset, "", string(b), parser.ParseComments)
-	if err != nil {
-		panic(err)
-	}
-	return server
-}
-
-func strFirstToUpper(str string) string {
-	var upperStr string
-	vv := []rune(str)
-	for i := 0; i < len(vv); i++ {
-		if i == 0 {
-			if vv[i] >= 97 && vv[i] <= 122 {
-				// string的码表相差32位
-				vv[i] -= 32
-				upperStr += string(vv[i])
-			} else {
-				fmt.Println("not begins with lowercase letter")
-				return str
-			}
-		} else {
-			upperStr += string(vv[i])
-		}
-	}
-	return upperStr
-}
-
 func genServerTemplate() {
-	args := regServerTplArgs{Server: server, Version: version, UpperServer: strFirstToUpper(server), Hooks: hooks}
+	args := regServerTplArgs{
+		Server:  server,
+		Version: version,
+		Service: upper1st(service),
+		Hooks:   hooks,
+	}
 	tmpl, err := template.New("test").Parse(regServerTpl)
 	if err != nil {
 		panic(err)
@@ -209,9 +148,7 @@ func genServerTemplate() {
 	if err != nil {
 		panic(err)
 	}
-	for _, decl := range importAst.Decls {
-		blockStmt = decl.(*ast.FuncDecl).Body.List[1].(*ast.BlockStmt)
-	}
+	blockStmt = importAst.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.BlockStmt)
 }
 
 func updateBodyPOS(lastPos token.Pos) {

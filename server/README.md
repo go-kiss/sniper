@@ -3,13 +3,15 @@
 接口实现层，可以理解成 MVC 的控制器层。
 
 ## 目录结构
+
 server 层跟 rpc 目录一一对应，原则上使用 `{service_name}server{version_number}` 方式命名。
 例如，rpc/user/v0 服务对应的 server 目录是 server/userserver0。
 
-一般，一个目录下只有一个 server.go，如有需要，也可以创建多个文件。
+一个目录下可以有多个 *.go 文件，每个 service 一个。
 
 ## 实现接口
-服务接口定义在 rpc 目录对应的 service.twirp.go 中，是自动生成的。
+
+服务接口定义在 rpc 目录对应的 echo.twirp.go 中，是自动生成的。
 ```go
 package userserver0
 
@@ -26,10 +28,10 @@ import (
 )
 
 // 服务对象，约定为 Server
-type Server struct{}
+type EchoServer struct{}
 
 // 接口实现，三步走：处理入参、调用服务、返回出参
-func (s *Server) ClearLoginCache(ctx context.Context, req *pb.ClearRequest) (*pb.EmptyReply, error) {
+func (s *EchoServer) ClearLoginCache(ctx context.Context, req *pb.ClearRequest) (*pb.EmptyReply, error) {
 	// 处理入参
 	mid := req.GetMid()
 
@@ -44,6 +46,7 @@ func (s *Server) ClearLoginCache(ctx context.Context, req *pb.ClearRequest) (*pb
 ```
 
 ## 注册服务
+
 请参考 [cmd/server/README.md](../cmd/server/README.md)。
 
 ## 错误处理
@@ -56,6 +59,7 @@ func (s *Server) ClearLoginCache(ctx context.Context, req *pb.ClearRequest) (*pb
 **错误** 可以认为是一种特殊的“正常情况”, **异常** 则是真正的“不正常情况”。
 
 ### 处理错误
+
 客户端需要根据不同业务需求处理 **错误**, 例如用户未登录则需要跳转到登录页面。所以，我需要使用错误码来返回错误信息。
 
 处理代码示例如下：
@@ -83,6 +87,7 @@ X-Trace-Id: 3kclnknyzmamo
 ```
 
 ### 处理异常
+
 正常的客户端会严格按照接口定义调用接口，只有客户端有 bug 或者服务端有问题的时候才会遇到 **异常**。
 在这种情况下，首先，我们无法从错误中恢复；其次，这类错误的处理方式跟具体的业务没有关系的；最后，我们需要 **及时发现** 这类问题并修复。
 所以，我们需要使用 HTTP 的 4xx 和 5xx 状态码来返回错误信息。

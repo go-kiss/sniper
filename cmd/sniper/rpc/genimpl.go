@@ -6,11 +6,13 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 )
 
 const serverTpl = `
@@ -22,56 +24,131 @@ import (
 	pb "{{.RPCPkg}}"
 )
 
-// Server {{.Comment}}
-type Server struct{}
+type {{.Service}}Server struct{}
 `
 
 const funcTpl = `
-// {{.Name}} {{.Comment}}
-func (s *Server) {{.Name}}(ctx context.Context, req *pb.{{.ReqType}}) (resp *pb.{{.RespType}}, err error) {
+func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *pb.{{.ReqType}}) (resp *pb.{{.RespType}}, err error) {
 	// FIXME 请开始你的表演
 	return
 }
 `
 
 const echoFuncTpl = `
-// {{.Name}} {{.Comment}}
-func (s *Server) Echo(ctx context.Context, req *pb.EchoReq) (resp *pb.EchoResp, err error) {
-	return &pb.EchoResp{Msg: req.Msg}, nil
+func (s *{{.Service}}Server) Echo(ctx context.Context, req *pb.{{.Service}}EchoReq) (resp *pb.{{.Service}}EchoResp, err error) {
+	return &pb.{{.Service}}EchoResp{Msg: req.Msg}, nil
 }
 `
-
-type serverTplArgs struct {
-	RPCPkg    string
-	Comment   string
-	ServerPkg string
-}
-
-type funcTplArgs struct {
-	Comment  string
-	Name     string
-	ReqType  string
-	RespType string
-}
 
 func genOrUpdateTwirpServer() {
 	if !fileExists(serverFile) {
 		genServerFile()
 	}
 
-	twirp := parseFileByAst(twirpFile)
+	twirp, _ := parseAST(twirpFile)
 	for _, decl := range twirp.Decls {
 		if tree, ok := decl.(*ast.GenDecl); ok && tree.Tok == token.TYPE {
+			// 补充函数
 			appendFuncs(tree)
+			// 更新注释
+			updateRPCComment(tree)
 			break // 只处理一个文件
 		}
 	}
 }
 
+func updateRPCComment(twirp *ast.GenDecl) {
+	comments := getRPCComments(twirp)
+
+	fset := token.NewFileSet()
+	f, err := decorator.ParseFile(fset, serverFile, nil, parser.ParseComments)
+	if err != nil {
+		return
+	}
+
+	for _, decl := range f.Decls {
+		// 处理 server struct 注释
+		s, ok := decl.(*dst.GenDecl)
+		if ok && s.Tok.String() == "type" {
+			api := fmt.Sprintf(
+				"%sServer 实现 /twirp/%s.v%s.%s 服务",
+				upper1st(service),
+				server,
+				version,
+				upper1st(service),
+			)
+			if comment, ok := comments[upper1st(service)]; ok {
+				s.Decs.Start.Replace("// " + api + "\n")
+				for _, c := range comment.List {
+					s.Decs.Start.Append(c.Text)
+				}
+			}
+		}
+
+		// 函数处理注释
+		d, ok := decl.(*dst.FuncDecl)
+		if !ok {
+			continue
+		}
+
+		api := fmt.Sprintf(
+			"%s 实现 /twirp/%s.v%s.%s/%s 接口",
+			d.Name.Name,
+			server,
+			version,
+			upper1st(service),
+			d.Name.Name,
+		)
+
+		if comment, ok := comments[d.Name.Name]; ok {
+			d.Decs.Start.Replace("// " + api + "\n")
+			for _, c := range comment.List {
+				d.Decs.Start.Append(c.Text)
+			}
+		}
+	}
+
+	fb, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer fb.Close()
+
+	decorator.Fprint(fb, f)
+}
+
+func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) {
+	comments = make(map[string]*ast.CommentGroup)
+	// rpc service注释单独添加
+	comments[upper1st(service)] = twirp.Doc
+	for _, s := range twirp.Specs {
+		ts, ok := s.(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+
+		it, ok := ts.Type.(*ast.InterfaceType)
+		if !ok {
+			continue
+		}
+
+		for _, method := range it.Methods.List {
+			name := method.Names[0].Name
+			if name == "Do" || name == "ServiceDescriptor" || name == "ProtocGenTwirpVersion" {
+				continue
+			}
+
+			comments[name] = method.Doc
+		}
+	}
+
+	return
+}
+
 func appendFuncs(twirp *ast.GenDecl) {
 	buf := &bytes.Buffer{}
 
-	definedFuncs := scanDefinedFuncs()
+	definedFuncs := scanDefinedFuncs(serverFile)
 
 	for _, s := range twirp.Specs {
 		ts, ok := s.(*ast.TypeSpec)
@@ -91,7 +168,7 @@ func appendFuncs(twirp *ast.GenDecl) {
 				continue
 			}
 
-			if _, ok := definedFuncs[name]; ok {
+			if definedFuncs[name] {
 				continue
 			}
 
@@ -117,27 +194,27 @@ func appendFuncs(twirp *ast.GenDecl) {
 }
 
 func appendFunc(buf *bytes.Buffer, method *ast.Field) {
-	args := funcTplArgs{Name: method.Names[0].Name}
+	args := struct {
+		Name     string
+		ReqType  string
+		RespType string
+		Service  string
+	}{}
+
+	args.Name = method.Names[0].Name
 
 	ft := method.Type.(*ast.FuncType)
-
 	// 写死函数签名
 	args.ReqType = ft.Params.List[1].Type.(*ast.StarExpr).X.(*ast.Ident).Name
 	args.RespType = ft.Results.List[0].Type.(*ast.StarExpr).X.(*ast.Ident).Name
-	args.Comment = fmt.Sprintf(
-		"实现 /twirp/%s.v%s.%s/%s 接口",
-		server,
-		version,
-		strFirstToUpper(server),
-		args.Name,
-	)
+	args.Service = upper1st(service)
 
 	tpl := funcTpl
 	if args.Name == "Echo" {
 		tpl = echoFuncTpl
 	}
 
-	tmpl, err := template.New("test").Parse(tpl)
+	tmpl, err := template.New("server").Parse(tpl)
 	if err != nil {
 		panic(err)
 	}
@@ -149,8 +226,8 @@ func appendFunc(buf *bytes.Buffer, method *ast.Field) {
 
 }
 
-func scanDefinedFuncs() map[string]bool {
-	parseServer := parseFileByAst(serverFile)
+func scanDefinedFuncs(file string) map[string]bool {
+	parseServer, _ := parseAST(file)
 	definedFuncs := make(map[string]bool)
 	for _, decl := range parseServer.Decls {
 		if fundel, ok := decl.(*ast.FuncDecl); ok {
@@ -173,7 +250,7 @@ func fileExists(file string) bool {
 }
 
 func genServerFile() {
-	fd, err := createFile(serverFile)
+	fd, err := createDirAndFile(serverFile)
 	if err != nil {
 		panic(err)
 	}
@@ -181,18 +258,11 @@ func genServerFile() {
 
 	serverPkg := filepath.Base(filepath.Dir(serverFile))
 
-	comment := fmt.Sprintf(
-		"实现 /twirp/%s.v%s.%s 服务",
-		server,
-		version,
-		strFirstToUpper(server),
-	)
-
-	args := serverTplArgs{
-		RPCPkg:    rpcPkg,
-		Comment:   comment,
-		ServerPkg: serverPkg,
-	}
+	args := struct {
+		RPCPkg    string
+		ServerPkg string
+		Service   string
+	}{rpcPkg, serverPkg, upper1st(service)}
 
 	buf := &bytes.Buffer{}
 
@@ -210,18 +280,4 @@ func genServerFile() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func parseFileByAst(file string) *ast.File {
-	b, err := ioutil.ReadFile(file)
-	if err != nil {
-		panic(err)
-	}
-
-	fset := token.NewFileSet()
-	parseServer, err := parser.ParseFile(fset, "", string(b), parser.ParseComments)
-	if err != nil {
-		panic(err)
-	}
-	return parseServer
 }
