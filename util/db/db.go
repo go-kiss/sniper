@@ -13,13 +13,19 @@ import (
 	"sniper/util/log"
 	"sniper/util/metrics"
 
+	"github.com/dlmiddlecote/sqlstats"
 	"github.com/go-sql-driver/mysql"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var dbs = make(map[string]*DB, 4)
 var lock = sync.RWMutex{}
+
+type Row interface {
+	Scan(dest ...interface{}) error
+}
 
 // DB 对象，有限开放 sql.DB 功能，支持上报 metrics
 type DB struct {
@@ -103,7 +109,7 @@ func Get(ctx context.Context, name string) *DB {
 		return db
 	}
 
-	dsn := conf.GetString("DB_" + name + "_DSN")
+	dsn := conf.Get("DB_" + name + "_DSN")
 
 	sqldb, err := sql.Open("mysql", dsn)
 
@@ -119,6 +125,8 @@ func Get(ctx context.Context, name string) *DB {
 	sqldb.SetMaxOpenConns(maxOpenConns)
 	sqldb.SetMaxIdleConns(10)
 	sqldb.SetConnMaxLifetime(1 * time.Hour)
+
+	prometheus.Register(sqlstats.NewStatsCollector(name, sqldb))
 
 	db = &DB{db: sqldb, name: name}
 	lock.Lock()
@@ -365,33 +373,4 @@ func IsDuplicateEntryErr(err error) bool {
 	}
 
 	return false
-}
-
-// GatherMetrics 连接池状态指标
-func GatherMetrics() {
-	lock.RLock()
-	defer lock.RUnlock()
-
-	for _, c := range dbs {
-		s := c.db.Stats()
-
-		metrics.DBMaxOpenConnections.WithLabelValues(c.name).Set(float64(s.MaxOpenConnections))
-		metrics.DBOpenConnections.WithLabelValues(c.name).Set(float64(s.OpenConnections))
-		metrics.DBInUseConnections.WithLabelValues(c.name).Set(float64(s.InUse))
-		metrics.DBIdleConnections.WithLabelValues(c.name).Set(float64(s.Idle))
-
-		if d := s.WaitCount - c.s.WaitCount; d > 0 {
-			metrics.DBWaitCount.WithLabelValues(c.name).Add(float64(d))
-		}
-
-		if d := s.MaxIdleClosed - c.s.MaxIdleClosed; d > 0 {
-			metrics.DBMaxIdleClosed.WithLabelValues(c.name).Add(float64(d))
-		}
-
-		if d := s.MaxLifetimeClosed - c.s.MaxLifetimeClosed; d > 0 {
-			metrics.DBMaxLifetimeClosed.WithLabelValues(c.name).Add(float64(d))
-		}
-
-		c.s = s
-	}
 }

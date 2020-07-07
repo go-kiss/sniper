@@ -44,10 +44,10 @@ var levels = map[string]logrus.Level{
 }
 
 func setLevel() {
-	levelConf := conf.GetString("LOG_LEVEL_" + conf.Hostname)
+	levelConf := conf.Get("LOG_LEVEL_" + conf.Hostname)
 
 	if levelConf == "" {
-		levelConf = conf.GetString("LOG_LEVEL")
+		levelConf = conf.Get("LOG_LEVEL")
 	}
 
 	if level, ok := levels[levelConf]; ok {

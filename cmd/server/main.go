@@ -84,7 +84,7 @@ func (s panicHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodOptions {
 		origin := r.Header.Get("Origin")
-		suffix := conf.GetString("CORS_ORIGIN_SUFFIX")
+		suffix := conf.Get("CORS_ORIGIN_SUFFIX")
 
 		if suffix != "" && strings.HasSuffix(origin, suffix) {
 			w.Header().Add("Access-Control-Allow-Origin", origin)

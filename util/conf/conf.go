@@ -88,15 +88,14 @@ func GetFloat64(key string) float64 {
 	return viper.GetFloat64(key)
 }
 
-// GetString 获取字符串配置
-func GetString(key string) string {
+// Get 获取字符串配置
+func Get(key string) string {
 	return viper.GetString(key)
 }
 
-// GetStringSlice 获取字符串列表
-// a,b,c => []string{"a", "b", "c"}
-func GetStringSlice(key string) (s []string) {
-	value := GetString(key)
+// GetStrings 获取字符串列表
+func GetStrings(key string) (s []string) {
+	value := Get(key)
 	if value == "" {
 		return
 	}
@@ -107,10 +106,19 @@ func GetStringSlice(key string) (s []string) {
 	return
 }
 
-// GetIntSlice 获取数字列表
-// 1,2,3 => []int64{1,2,3}
-func GetIntSlice(key string) (s []int64, err error) {
-	value := GetString(key)
+// GetInt32s 获取数字列表
+// 1,2,3 => []int32{1,2,3}
+func GetInt32s(key string) (s []int32, err error) {
+	s64, err := GetInt64s(key)
+	for _, v := range s64 {
+		s = append(s, int32(v))
+	}
+	return
+}
+
+// GetInt64s 获取数字列表
+func GetInt64s(key string) (s []int64, err error) {
+	value := Get(key)
 	if value == "" {
 		return
 	}

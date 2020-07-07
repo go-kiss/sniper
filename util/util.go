@@ -13,7 +13,6 @@ import (
 func GatherMetrics() {
 	mc.GatherMetrics()
 	redis.GatherMetrics()
-	db.GatherMetrics()
 }
 
 // Reset all utils
