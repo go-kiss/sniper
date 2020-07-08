@@ -120,7 +120,9 @@ func updateRPCComment(twirp *ast.GenDecl) {
 func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) {
 	comments = make(map[string]*ast.CommentGroup)
 	// rpc service注释单独添加
-	comments[upper1st(service)] = twirp.Doc
+	if twirp.Doc != nil {
+		comments[upper1st(service)] = twirp.Doc
+	}
 	for _, s := range twirp.Specs {
 		ts, ok := s.(*ast.TypeSpec)
 		if !ok {
@@ -138,7 +140,9 @@ func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) 
 				continue
 			}
 
-			comments[name] = method.Doc
+			if method.Doc != nil {
+				comments[name] = method.Doc
+			}
 		}
 	}
 
