@@ -67,9 +67,16 @@ func updateRPCComment(twirp *ast.GenDecl) {
 	}
 
 	for _, decl := range f.Decls {
-		// 处理 server struct 注释
-		s, ok := decl.(*dst.GenDecl)
-		if ok && s.Tok.String() == "type" {
+		switch d := decl.(type) {
+		case *dst.GenDecl: // 处理 server struct 注释
+			if d.Tok != token.TYPE {
+				continue
+			}
+			ts, ok := d.Specs[0].(*dst.TypeSpec)
+			if !ok || ts.Name.Name != upper1st(service)+"Server" {
+				continue
+			}
+
 			api := fmt.Sprintf(
 				"%sServer 实现 /twirp/%s.v%s.%s 服务",
 				upper1st(service),
@@ -78,32 +85,26 @@ func updateRPCComment(twirp *ast.GenDecl) {
 				upper1st(service),
 			)
 			if comment, ok := comments[upper1st(service)]; ok {
-				s.Decs.Start.Replace("// " + api + "\n")
+				d.Decs.Start.Replace("// " + api + "\n")
 				for _, c := range comment.List {
-					s.Decs.Start.Append(c.Text)
+					d.Decs.Start.Append(c.Text)
 				}
 			}
-		}
+		case *dst.FuncDecl: // 函数处理注释
+			api := fmt.Sprintf(
+				"%s 实现 /twirp/%s.v%s.%s/%s 接口",
+				d.Name.Name,
+				server,
+				version,
+				upper1st(service),
+				d.Name.Name,
+			)
 
-		// 函数处理注释
-		d, ok := decl.(*dst.FuncDecl)
-		if !ok {
-			continue
-		}
-
-		api := fmt.Sprintf(
-			"%s 实现 /twirp/%s.v%s.%s/%s 接口",
-			d.Name.Name,
-			server,
-			version,
-			upper1st(service),
-			d.Name.Name,
-		)
-
-		if comment, ok := comments[d.Name.Name]; ok {
-			d.Decs.Start.Replace("// " + api + "\n")
-			for _, c := range comment.List {
-				d.Decs.Start.Append(c.Text)
+			if comment, ok := comments[d.Name.Name]; ok {
+				d.Decs.Start.Replace("// " + api + "\n")
+				for _, c := range comment.List {
+					d.Decs.Start.Append(c.Text)
+				}
 			}
 		}
 	}
