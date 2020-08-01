@@ -56,7 +56,7 @@ func Get(ctx context.Context, name string) *Redis {
 
 	c := redis.New(redis.Options{
 		// TODO 支持更多配置
-		Address:      conf.GetString("REDIS_" + name + "_HOST"),
+		Address:      conf.Get("REDIS_" + name + "_HOST"),
 		PoolSize:     conf.GetInt("REDIS_" + name + "_MAX_CONNS"),
 		MinIdleConns: conf.GetInt("REDIS_" + name + "_INIT_CONNS"),
 		MaxConnAge:   60 * time.Second, // 连接存活最长时间
@@ -107,10 +107,10 @@ func (r *Redis) MGet(ctx context.Context, keys []string) (items map[string]*Item
 	log.Get(ctx).Debugf("[Redis:%s] MGet %s", r.name, keyName)
 
 	start := time.Now()
-	items = make(map[string]*Item, 10)
+	items = make(map[string]*Item, len(keys))
 	redisItems, err := r.client.MGet(ctx, keys)
-	for _, k := range keys {
-		items[k] = (*Item)(redisItems[k])
+	for k, v := range redisItems {
+		items[k] = (*Item)(v)
 	}
 	duration := time.Since(start)
 
@@ -321,6 +321,62 @@ func (r *Redis) ZIncrBy(ctx context.Context, key, member string, by float64) err
 	).Observe(duration.Seconds())
 
 	return err
+}
+
+// ZRangeByScore 返回有序集 key 中，指定分数区间内的成员
+// 其中成员的位置按 score 值递增(从小到大)来排序
+// 具有相同 score 值的成员按字典序(lexicographical order)来排列
+// 仅count > 0时 offset, count 参数有效
+func (r *Redis) ZRangeByScore(ctx context.Context, key string, min, max float64, offset, count int64) (values []*ZSetValue, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ZRangeByScore")
+	defer span.Finish()
+	span.SetTag(string(ext.Component), "redis")
+	span.SetTag(string(ext.DBInstance), r.name)
+	span.SetTag("redis.key", key)
+
+	log.Get(ctx).Debugf("[Redis:%s] ZRangeByScore %s", r.name, key)
+
+	now := time.Now()
+	res, err := r.client.ZRangeByScore(ctx, key, min, max, offset, count)
+	for _, s := range res {
+		values = append(values, (*ZSetValue)(s))
+	}
+	duration := time.Since(now)
+
+	metrics.RedisDurationsSeconds.WithLabelValues(
+		r.name,
+		"ZRangeByScore",
+	).Observe(duration.Seconds())
+
+	return
+}
+
+// ZRevRangeByScore 返回有序集 key 中，指定分数区间内的成员
+// 其中成员的位置按 score 值递减(从大到小)来排列
+// 具有相同 score 值的成员按字典序的逆序(reverse lexicographical order)排列。
+// 仅count > 0时 offset, count 参数有效
+func (r *Redis) ZRevRangeByScore(ctx context.Context, key string, max, min float64, offset, count int64) (values []*ZSetValue, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ZRevRangeBySocre")
+	defer span.Finish()
+	span.SetTag(string(ext.Component), "redis")
+	span.SetTag(string(ext.DBInstance), r.name)
+	span.SetTag("redis.key", key)
+
+	log.Get(ctx).Debugf("[Redis:%s] ZRevRangeByScore %s", r.name, key)
+
+	now := time.Now()
+	res, err := r.client.ZRevRangeByScore(ctx, key, max, min, offset, count)
+	for _, s := range res {
+		values = append(values, (*ZSetValue)(s))
+	}
+	duration := time.Since(now)
+
+	metrics.RedisDurationsSeconds.WithLabelValues(
+		r.name,
+		"ZRevRangeByScore",
+	).Observe(duration.Seconds())
+
+	return
 }
 
 // ZRange 返回有序集 key 中，指定区间内的成员

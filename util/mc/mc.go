@@ -62,7 +62,7 @@ func Get(ctx context.Context, name string) *MC {
 		return mc
 	}
 
-	host := conf.GetString("MC_" + name + "_HOSTS")
+	host := conf.Get("MC_" + name + "_HOSTS")
 	initConns := conf.GetInt("MC_" + name + "_INIT_CONNS")
 	maxIdleConns := conf.GetInt("MC_" + name + "_MAX_IDLE_CONNS")
 

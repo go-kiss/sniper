@@ -3,7 +3,7 @@
 // - logging
 // - opentracing
 // - prometheus
-package http
+package xhttp
 
 import (
 	"context"
