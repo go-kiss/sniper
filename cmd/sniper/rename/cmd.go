@@ -51,20 +51,34 @@ var Cmd = &cobra.Command{
 		module := getModuleName()
 		module = strings.ReplaceAll(module, ".", "\\.")
 
-		sh := fmt.Sprintf(`grep --exclude .git -rlI '"%s/' . | xargs sed -i '' 's#"%s/#"%s/#'`, module, module, rootPkg)
+		{
+			sh := fmt.Sprintf(`grep --exclude .git -rlI '"%s/' . | xargs sed -i '' 's#"%s/#"%s/#'`, module, module, rootPkg)
 
-		c1 := exec.Command("bash")
-		c1.Stdin = strings.NewReader(sh)
-		c1.Stdout = os.Stdout
-		c1.Stderr = os.Stderr
-		c1.Run()
+			c := exec.Command("bash")
+			c.Stdin = strings.NewReader(sh)
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			c.Run()
+		}
 
-		sh = fmt.Sprintf(`sed -i '' 's#module %s#module %s#' go.mod`, module, rootPkg)
+		{
+			sh := fmt.Sprintf(`sed -i '' 's#module %s#module %s#' go.mod`, module, rootPkg)
 
-		c2 := exec.Command("bash")
-		c2.Stdin = strings.NewReader(sh)
-		c2.Stdout = os.Stdout
-		c2.Stderr = os.Stderr
-		c2.Run()
+			c := exec.Command("bash")
+			c.Stdin = strings.NewReader(sh)
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			c.Run()
+		}
+
+		{
+			sh := fmt.Sprintf(`sed -i '' 's#"sniper"#"%s"#' util/conf/conf.go && mv sniper.toml %s.toml`, rootPkg, rootPkg)
+
+			c := exec.Command("bash")
+			c.Stdin = strings.NewReader(sh)
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			c.Run()
+		}
 	},
 }
