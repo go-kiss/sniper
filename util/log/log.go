@@ -4,7 +4,6 @@ package log
 import (
 	"context"
 	"os"
-	"strconv"
 
 	"sniper/util/conf"
 	"sniper/util/ctxkit"
@@ -65,6 +64,7 @@ func Get(ctx context.Context) Logger {
 		"instance_id": conf.Hostname,
 		"ip":          ctxkit.GetUserIP(ctx),
 		"trace_id":    ctxkit.GetTraceID(ctx),
+	})
 }
 
 // Reset 使用最新配置重置日志级别
