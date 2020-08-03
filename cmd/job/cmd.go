@@ -29,9 +29,10 @@ import (
 )
 
 type jobInfo struct {
-	Name string `json:"name"`
-	Spec string `json:"spec"`
-	job  func(ctx context.Context) error
+	Name  string   `json:"name"`
+	Spec  string   `json:"spec"`
+	Tasks []string `json:"tasks"`
+	job   func(ctx context.Context) error
 }
 
 func (j *jobInfo) Run() {
@@ -156,6 +157,9 @@ var cmdList = &cobra.Command{
 		for k, v := range jobs {
 			fmt.Printf("%s [%s]\n", k, v.Spec)
 		}
+		for k, v := range httpJobs {
+			fmt.Printf("%s [%s]\n", k, v.Spec)
+		}
 	},
 }
 
@@ -195,7 +199,7 @@ func init() {
 
 // http 注册的任务需要 http 触发
 // spec 采用 unix crontab 语法，不支持秒!!!
-func http(name string, spec string, job func(ctx context.Context) error) {
+func http(name string, spec string, job func(ctx context.Context) error, args ...string) {
 	if _, ok := httpJobs[name]; ok {
 		panic(name + "is used")
 	}
@@ -216,7 +220,7 @@ func http(name string, spec string, job func(ctx context.Context) error) {
 		schedule = spec
 	}
 
-	httpJobs[name] = regjob(name, schedule, job)
+	httpJobs[name] = regjob(name, schedule, job, args)
 	return
 }
 
@@ -226,7 +230,7 @@ func cron(name string, spec string, job func(ctx context.Context) error) {
 		panic(name + " is used")
 	}
 
-	j := regjob(name, spec, job)
+	j := regjob(name, spec, job, []string{})
 	jobs[name] = j
 
 	if spec == "@manual" {
@@ -242,7 +246,7 @@ func manual(name string, job func(ctx context.Context) error) {
 	cron(name, "@manual", job)
 }
 
-func regjob(name string, spec string, job func(ctx context.Context) error) (ji *jobInfo) {
+func regjob(name string, spec string, job func(ctx context.Context) error, tasks []string) (ji *jobInfo) {
 	j := func(ctx context.Context) (err error) {
 		span, ctx := opentracing.StartSpanFromContext(ctx, "Cron")
 		defer span.Finish()
@@ -278,7 +282,7 @@ func regjob(name string, spec string, job func(ctx context.Context) error) (ji *
 		return
 	}
 
-	ji = &jobInfo{Name: name, Spec: spec, job: j}
+	ji = &jobInfo{Name: name, Spec: spec, job: j, Tasks: tasks}
 	return
 }
 
