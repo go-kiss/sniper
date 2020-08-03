@@ -22,6 +22,11 @@ func GetTraceID(ctx context.Context) string {
 	return id
 }
 
+// WithTraceID 注入 trace_id
+func WithTraceID(ctx context.Context, traceID string) context.Context {
+	return context.WithValue(ctx, TraceIDKey, traceID)
+}
+
 // GetUserIP 获取用户 IP
 func GetUserIP(ctx context.Context) string {
 	ip, _ := ctx.Value(UserIPKey).(string)
