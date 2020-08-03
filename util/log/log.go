@@ -3,8 +3,8 @@ package log
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"strconv"
 
 	"sniper/util/conf"
 	"sniper/util/ctxkit"
@@ -60,17 +60,11 @@ func setLevel() {
 // Get 获取日志实例
 func Get(ctx context.Context) Logger {
 	return logrus.WithFields(logrus.Fields{
+		"env":         conf.Env,
 		"app_id":      conf.AppID,
 		"instance_id": conf.Hostname,
-		"trace_id":    ctx.Value(ctxkit.TraceIDKey),
-		"uid":         fmt.Sprint(ctx.Value(ctxkit.UserIDKey)),
-		"ip":          ctx.Value(ctxkit.UserIPKey),
-		"platform":    ctx.Value(ctxkit.PlatformKey),
-		"device":      ctx.Value(ctxkit.DeviceKey),
-		"version":     ctx.Value(ctxkit.VersionKey),
-		"mobi_app":    ctx.Value(ctxkit.MobiAppKey),
-		"env":         conf.Env,
-	})
+		"ip":          ctxkit.GetUserIP(ctx),
+		"trace_id":    ctxkit.GetTraceID(ctx),
 }
 
 // Reset 使用最新配置重置日志级别
