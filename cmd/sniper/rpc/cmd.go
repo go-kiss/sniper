@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"io/ioutil"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +28,8 @@ var (
 	hooks = "hooks"
 
 	needLogin bool
+
+	legacy = false
 )
 
 func init() {
@@ -95,7 +98,7 @@ func genRPC() {
 		genProto(protoFile)
 	}
 
-	cmd := exec.Command("protoc", "--twirp_out=.", "--go_out=.", proto)
+	cmd := exec.Command("make", "rpc")
 	cmd.Dir = rootDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -106,10 +109,20 @@ func genRPC() {
 
 func registerServer() {
 	httpFile := fmt.Sprintf("%s/cmd/server/http.go", rootDir)
-	httpAST, fset := parseAST(httpFile)
+	fset := token.NewFileSet()
+	httpAST, err := decorator.ParseFile(fset, httpFile, nil, parser.ParseComments)
+	if err != nil {
+		return
+	}
 
+	// 检查 import 包
+	if !serverImported(httpAST.Imports) {
+		genPKGTemplate()
+		appendImportPKGs(httpAST)
+	}
+	// 处理注册路由
 	for _, decl := range httpAST.Decls {
-		gen, ok := decl.(*ast.FuncDecl)
+		gen, ok := decl.(*dst.FuncDecl)
 		if !ok {
 			continue
 		}
@@ -124,11 +137,6 @@ func registerServer() {
 			return
 		}
 
-		if !serverImported(httpAST.Imports) {
-			genPKGTemplate()
-			appendImportPKGs(httpAST)
-		}
-
 		genServerTemplate()
 		appendServer(gen)
 	}
@@ -138,7 +146,7 @@ func registerServer() {
 		return
 	}
 	defer f.Close()
-	if err := printer.Fprint(f, fset, httpAST); err != nil {
+	if err := decorator.Fprint(f, httpAST); err != nil {
 		panic(err)
 	}
 }
@@ -146,6 +154,12 @@ func registerServer() {
 func genImplements() {
 	twirpFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.twirp.go", rootDir, server, version, service)
 	serverFile = fmt.Sprintf("%s/server/%sserver%s/%s.go", rootDir, server, version, service)
+
+	if !legacy {
+		serverFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.go", rootDir, server, version, service)
+		initNewTpl()
+	}
+
 	rpcPkg = fmt.Sprintf("%s/rpc/%s/v%s", rootPkg, server, version)
 
 	if !fileExists(twirpFile) {

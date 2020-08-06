@@ -6,6 +6,7 @@ import (
 	"sniper/cmd/server/hook"
 
 	"github.com/bilibili/twirp"
+
 )
 
 var hooks = twirp.ChainHooks(

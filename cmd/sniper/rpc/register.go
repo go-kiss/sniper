@@ -3,37 +3,20 @@ package rpc
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"text/template"
+
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 )
 
 // 追加的server
-var blockStmt *ast.BlockStmt
+var blockStmt *dst.BlockStmt
 
 // 追加的import
-var importRPCSpec *ast.ImportSpec
-var importServerSpec *ast.ImportSpec
-
-const regServerTpl = `
-package main
-func main() {
-	{
-		server := &{{.Server}}server{{.Version}}.{{.Service}}Server{}
-		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, {{.Hooks}})
-		mux.Handle({{.Server}}_v{{.Version}}.{{.Service}}PathPrefix, handler)
-	}
-}
-`
-
-const importTpl = `
-package main
-import(
-	{{.PKGName}} {{.RPCPath}}
-	{{.ServerPath}}
-)
-`
+var importRPCSpec *dst.ImportSpec
+var importServerSpec *dst.ImportSpec
 
 type regServerTplArgs struct {
 	Server  string
@@ -48,7 +31,7 @@ type importTplArgs struct {
 	ServerPath string
 }
 
-func serverImported(imports []*ast.ImportSpec) bool {
+func serverImported(imports []*dst.ImportSpec) bool {
 	rpc := server + "_v" + version
 	for _, i := range imports {
 		if i.Name == nil {
@@ -62,60 +45,46 @@ func serverImported(imports []*ast.ImportSpec) bool {
 	return false
 }
 
-func appendServer(gen *ast.FuncDecl) {
-	var lastPos token.Pos
-
-	if l := len(gen.Body.List); l > 0 {
-		lastBlockPos := gen.Body.List[l-1].(*ast.BlockStmt).Rbrace
-		updateBodyPOS(lastBlockPos)
-		lastPos = gen.Body.List[l-1].(*ast.BlockStmt).Rbrace
-	} else {
-		lastPos = gen.Pos()
-	}
-
-	updateBodyPOS(lastPos)
-
+func appendServer(gen *dst.FuncDecl) {
+	blockStmt.Decs.Start.Replace("\n")
 	gen.Body.List = append(gen.Body.List, blockStmt)
 }
 
-func appendImportPKGs(file *ast.File) {
+func appendImportPKGs(file *dst.File) {
 	for _, decl := range file.Decls {
-		imp, ok := decl.(*ast.GenDecl)
-		if !ok || imp.Tok != token.IMPORT {
+		pkg, ok := decl.(*dst.GenDecl)
+		if !ok || pkg.Tok != token.IMPORT {
 			continue
 		}
-		appendImportPKG(imp)
-	}
-}
 
-func appendImportPKG(pkg *ast.GenDecl) {
-	var pkgList []ast.Spec
-	for _, spec := range pkg.Specs {
-		pkgList = append(pkgList, spec)
+		if legacy {
+			importRPCSpec.Decs.Start.Replace("\n")
+		}
+
+		pkg.Specs = append(pkg.Specs, importRPCSpec)
+
+		if legacy {
+			pkg.Specs = append(pkg.Specs, importServerSpec)
+		}
 	}
-	insertPos := pkg.Rparen - 1
-	updatePKGPOS(insertPos)
-	// 添加import包
-	pkgList = append(pkgList, importRPCSpec, importServerSpec)
-	pkg.Specs = pkgList
 }
 
 // 判断服务是否已经注册
-func serverRegistered(gen *ast.FuncDecl) bool {
+func serverRegistered(gen *dst.FuncDecl) bool {
 	for _, writeServer := range gen.Body.List {
-		bs, ok := writeServer.(*ast.BlockStmt)
+		bs, ok := writeServer.(*dst.BlockStmt)
 		if !ok {
 			continue
 		}
-		ue, ok := bs.List[0].(*ast.AssignStmt).Rhs[0].(*ast.UnaryExpr)
+		ue, ok := bs.List[0].(*dst.AssignStmt).Rhs[0].(*dst.UnaryExpr)
 		if !ok {
 			continue
 		}
-		se, ok := ue.X.(*ast.CompositeLit).Type.(*ast.SelectorExpr)
+		se, ok := ue.X.(*dst.CompositeLit).Type.(*dst.SelectorExpr)
 		if !ok {
 			continue
 		}
-		if se.X.(*ast.Ident).Name != server+"server"+version {
+		if se.X.(*dst.Ident).Name != server+"server"+version {
 			continue
 		}
 		if se.Sel.Name != upper1st(service)+"Server" {
@@ -144,44 +113,11 @@ func genServerTemplate() {
 	}
 
 	serverSet := token.NewFileSet()
-	importAst, err := parser.ParseFile(serverSet, "", buf.String(), parser.ParseComments)
+	importAst, err := decorator.ParseFile(serverSet, "", buf.String(), parser.ParseComments)
 	if err != nil {
 		panic(err)
 	}
-	blockStmt = importAst.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.BlockStmt)
-}
-
-func updateBodyPOS(lastPos token.Pos) {
-	blockStmt.Lbrace = lastPos + 4
-	// 0段元素位置确定
-	blockStmt.List[0].(*ast.AssignStmt).TokPos = lastPos + 5
-	blockStmt.List[0].(*ast.AssignStmt).Lhs[0].(*ast.Ident).NamePos = lastPos + 5
-	blockStmt.List[0].(*ast.AssignStmt).Rhs[0].(*ast.UnaryExpr).OpPos = lastPos + 5
-	blockStmt.List[0].(*ast.AssignStmt).Rhs[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Type.(*ast.SelectorExpr).Sel.NamePos = lastPos + 5
-	blockStmt.List[0].(*ast.AssignStmt).Rhs[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Type.(*ast.SelectorExpr).X.(*ast.Ident).NamePos = lastPos + 5
-	blockStmt.List[0].(*ast.AssignStmt).Rhs[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Lbrace = lastPos + 5
-	blockStmt.List[0].(*ast.AssignStmt).Rhs[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Rbrace = lastPos + 5
-
-	// 1段元素位置确定
-	blockStmt.List[1].(*ast.AssignStmt).TokPos = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Lhs[0].(*ast.Ident).NamePos = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Rhs[0].(*ast.CallExpr).Fun.(*ast.SelectorExpr).Sel.NamePos = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Rhs[0].(*ast.CallExpr).Fun.(*ast.SelectorExpr).X.(*ast.Ident).NamePos = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Rhs[0].(*ast.CallExpr).Args[0].(*ast.Ident).NamePos = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Rhs[0].(*ast.CallExpr).Args[1].(*ast.Ident).NamePos = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Rhs[0].(*ast.CallExpr).Lparen = lastPos + 6
-	blockStmt.List[1].(*ast.AssignStmt).Rhs[0].(*ast.CallExpr).Rparen = lastPos + 6
-
-	// 2段元素位置确定
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Lparen = lastPos + 7
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Fun.(*ast.SelectorExpr).X.(*ast.Ident).NamePos = lastPos + 7
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Fun.(*ast.SelectorExpr).Sel.NamePos = lastPos + 7
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Args[0].(*ast.SelectorExpr).X.(*ast.Ident).NamePos = lastPos + 7
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Args[0].(*ast.SelectorExpr).Sel.NamePos = lastPos + 7
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Args[1].(*ast.Ident).NamePos = lastPos + 7
-	blockStmt.List[2].(*ast.ExprStmt).X.(*ast.CallExpr).Rparen = lastPos + 7
-
-	blockStmt.Rbrace = lastPos + 8
+	blockStmt = importAst.Decls[0].(*dst.FuncDecl).Body.List[0].(*dst.BlockStmt)
 }
 
 func genPKGTemplate() {
@@ -200,18 +136,13 @@ func genPKGTemplate() {
 	}
 
 	importSet := token.NewFileSet()
-	importAst, err := parser.ParseFile(importSet, "", buf.String(), parser.ParseComments)
+	importAst, err := decorator.ParseFile(importSet, "", buf.String(), parser.ParseComments)
 	if err != nil {
 		panic(err)
 	}
-	for _, decl := range importAst.Decls {
-		importRPCSpec = decl.(*ast.GenDecl).Specs[0].(*ast.ImportSpec)
-		importServerSpec = decl.(*ast.GenDecl).Specs[1].(*ast.ImportSpec)
-	}
-}
+	importRPCSpec = importAst.Decls[0].(*dst.GenDecl).Specs[0].(*dst.ImportSpec)
 
-func updatePKGPOS(pos token.Pos) {
-	importRPCSpec.Name.NamePos = pos + 4
-	importRPCSpec.Path.ValuePos = pos + 4
-	importServerSpec.Path.ValuePos = pos + 6
+	if legacy {
+		importServerSpec = importAst.Decls[0].(*dst.GenDecl).Specs[1].(*dst.ImportSpec)
+	}
 }

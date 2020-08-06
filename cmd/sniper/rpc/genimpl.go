@@ -15,31 +15,6 @@ import (
 	"github.com/dave/dst/decorator"
 )
 
-const serverTpl = `
-package {{.ServerPkg}}
-
-import (
-	"context"
-
-	pb "{{.RPCPkg}}"
-)
-
-type {{.Service}}Server struct{}
-`
-
-const funcTpl = `
-func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *pb.{{.ReqType}}) (resp *pb.{{.RespType}}, err error) {
-	// FIXME 请开始你的表演
-	return
-}
-`
-
-const echoFuncTpl = `
-func (s *{{.Service}}Server) Echo(ctx context.Context, req *pb.{{.Service}}EchoReq) (resp *pb.{{.Service}}EchoResp, err error) {
-	return &pb.{{.Service}}EchoResp{Msg: req.Msg}, nil
-}
-`
-
 func genOrUpdateTwirpServer() {
 	if !fileExists(serverFile) {
 		genServerFile()
@@ -48,10 +23,9 @@ func genOrUpdateTwirpServer() {
 	twirp, _ := parseAST(twirpFile)
 	for _, decl := range twirp.Decls {
 		if tree, ok := decl.(*ast.GenDecl); ok && tree.Tok == token.TYPE {
-			// 补充函数
 			appendFuncs(tree)
-			// 更新注释
 			updateRPCComment(tree)
+
 			break // 只处理一个文件
 		}
 	}
@@ -66,7 +40,10 @@ func updateRPCComment(twirp *ast.GenDecl) {
 		return
 	}
 
+	decls := make([]dst.Decl, 0, len(f.Decls))
 	for _, decl := range f.Decls {
+		decls = append(decls, decl)
+
 		switch d := decl.(type) {
 		case *dst.GenDecl: // 处理 server struct 注释
 			if d.Tok != token.TYPE {
@@ -84,7 +61,7 @@ func updateRPCComment(twirp *ast.GenDecl) {
 				version,
 				upper1st(service),
 			)
-			if comment, ok := comments[upper1st(service)]; ok {
+			if comment := comments[upper1st(service)]; comment != nil {
 				d.Decs.Start.Replace("// " + api + "\n")
 				for _, c := range comment.List {
 					d.Decs.Start.Append(c.Text)
@@ -100,14 +77,19 @@ func updateRPCComment(twirp *ast.GenDecl) {
 				d.Name.Name,
 			)
 
-			if comment, ok := comments[d.Name.Name]; ok {
+			if comment, ok := comments[d.Name.Name]; comment != nil {
 				d.Decs.Start.Replace("// " + api + "\n")
 				for _, c := range comment.List {
 					d.Decs.Start.Append(c.Text)
 				}
+			} else if !ok {
+				// 删除 proto 中不存在的方法
+				decls = decls[:len(decls)-1]
 			}
 		}
 	}
+
+	f.Decls = decls
 
 	fb, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -141,9 +123,7 @@ func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) 
 				continue
 			}
 
-			if method.Doc != nil {
-				comments[name] = method.Doc
-			}
+			comments[name] = method.Doc
 		}
 	}
 
@@ -264,10 +244,12 @@ func genServerFile() {
 	serverPkg := filepath.Base(filepath.Dir(serverFile))
 
 	args := struct {
+		Server    string
+		Version   string
 		RPCPkg    string
 		ServerPkg string
 		Service   string
-	}{rpcPkg, serverPkg, upper1st(service)}
+	}{server, version, rpcPkg, serverPkg, upper1st(service)}
 
 	buf := &bytes.Buffer{}
 
