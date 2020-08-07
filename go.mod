@@ -4,15 +4,10 @@ go 1.13
 
 require (
 	bou.ke/monkey v1.0.1
-	github.com/bilibili/memcache v0.0.0-20190606090951-c3f7f41f0f74
-	github.com/bilibili/net/pool v0.0.0-20190606013157-0098a1321213
-	github.com/bilibili/redis v0.0.0-20200429113220-2e5d60d8596d
 	github.com/bilibili/twirp v0.0.0-20200613072501-46833903a93c
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dave/dst v0.25.5
-	github.com/dlmiddlecote/sqlstats v1.0.0
 	github.com/fsnotify/fsnotify v1.4.7
-	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/jarcoal/httpmock v1.0.3
