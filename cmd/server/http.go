@@ -4,8 +4,7 @@ import (
 	"net/http"
 
 	"sniper/cmd/server/hook"
-
-	"github.com/bilibili/twirp"
+	"sniper/util/twirp"
 
 )
 

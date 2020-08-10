@@ -5,8 +5,7 @@ import (
 
 	"sniper/util/ctxkit"
 	"sniper/util/errors"
-
-	"github.com/bilibili/twirp"
+	"sniper/util/twirp"
 )
 
 // NewCheckLogin 检查用户登录态，未登录直接报错返回

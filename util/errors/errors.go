@@ -1,7 +1,8 @@
 package errors
 
 import (
-	"github.com/bilibili/twirp"
+	"sniper/util/twirp"
+
 	"github.com/pkg/errors"
 )
 

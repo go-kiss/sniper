@@ -104,7 +104,7 @@ message DownloadMsg {
   - json
   - protobuf
 
-最新版的[protobuf-gen-twirp](https://github.com/bilibili/twirp/tree/master/protoc-gen-twirp)已经支持使用 prefix 参数自定义接口前缀了。
+最新版的[protobuf-gen-twirp](./cmd/protoc-gen-twirp)已经支持使用 prefix 参数自定义接口前缀了。
 
 表单请求
 ```
@@ -137,6 +137,8 @@ Content-Length: 27
 {"message":"Hello, World!"}
 ```
 
+原始英文协议在[这里](../util/twirp/PROTOCOL.md)
+
 ## 生成代码
 
 ```bash
@@ -145,6 +147,9 @@ protoc --go_out=. --twirp_out=. echo.proto
 
 # 针对所有服务
 find rpc -name '*.proto' -exec protoc --twirp_out=. --go_out=. {} \;
+
+# 建议直接使用框架提供的 make 规则
+make rpc
 ```
 
 生成的文件中 `*.pb.go` 是由 protobuf 消息的定义代码，同时支持 protobuf 和 json。`*.twirp.go` 则是 rpc 路由相关代码。

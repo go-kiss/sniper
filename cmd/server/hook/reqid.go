@@ -6,8 +6,7 @@ import (
 
 	"sniper/util/ctxkit"
 	"sniper/util/trace"
-
-	"github.com/bilibili/twirp"
+	"sniper/util/twirp"
 )
 
 // NewRequestID 生成唯一请求标识并记录到 ctx

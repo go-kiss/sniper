@@ -8,8 +8,8 @@ import (
 	"sniper/util/ctxkit"
 	"sniper/util/log"
 	"sniper/util/metrics"
+	"sniper/util/twirp"
 
-	"github.com/bilibili/twirp"
 	"github.com/opentracing/opentracing-go"
 )
 

@@ -8,7 +8,6 @@
 2. go v1.12+
 3. [protoc](https://github.com/google/protobuf)
 4. [protoc-gen-go](https://github.com/golang/protobuf/tree/master/protoc-gen-go)
-5. [protoc-gen-twirp](https://github.com/bilibili/twirp/tree/master/protoc-gen-twirp)
 
 ## 目录结构
 ```
