@@ -51,7 +51,6 @@ type twirp struct {
 
 	importPrefix string            // String to prefix to imported package file names.
 	importMap    map[string]string // Mapping from .proto file name to import path.
-	prefix       string            // Prefix for rpc. Default is /twirp
 
 	methodOptionRegexp *regexp.Regexp
 
@@ -117,12 +116,6 @@ func (t *twirp) Generate(in *plugin.CodeGeneratorRequest) *plugin.CodeGeneratorR
 	t.genFiles = gen.FilesToGenerate(in)
 
 	t.sourceRelativePaths = params.paths == "source_relative"
-
-	if params.pathPrefix != "" {
-		t.prefix = params.pathPrefix
-	} else {
-		t.prefix = "/twirp"
-	}
 
 	t.methodOptionRegexp = regexp.MustCompile(params.optionPrefix + `:([^:\s]+)`)
 
@@ -511,9 +504,9 @@ func (t *twirp) generateServer(file *descriptor.FileDescriptorProto, service *de
 
 // pathPrefix returns the base path for all methods handled by a particular
 // service. It includes a trailing slash. (for example
-// "/twirp/twitch.example.Haberdasher/").
+// "/twitch.example.Haberdasher/").
 func (t *twirp) pathPrefix(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) string {
-	return fmt.Sprintf("%s/%s/", t.prefix, fullServiceName(file, service))
+	return "/" + fullServiceName(file, service) + "/"
 }
 
 // pathFor returns the complete path for requests to a particular method on a

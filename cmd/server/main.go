@@ -149,7 +149,11 @@ func startServer() {
 
 	handler := http.TimeoutHandler(panicHandler{handler: mux}, timeout, "timeout")
 
-	http.Handle("/", handler)
+	prefix := conf.Get("RPC_PREFIX")
+	if prefix == "" {
+		prefix = "/api"
+	}
+	http.Handle("/", http.StripPrefix(prefix, handler))
 
 	metricsHandler := promhttp.Handler()
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {

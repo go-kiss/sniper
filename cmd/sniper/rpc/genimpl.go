@@ -55,7 +55,7 @@ func updateRPCComment(twirp *ast.GenDecl) {
 			}
 
 			api := fmt.Sprintf(
-				"%sServer 实现 /twirp/%s.v%s.%s 服务",
+				"%sServer 实现 /%s.v%s.%s 服务",
 				upper1st(service),
 				server,
 				version,
@@ -69,7 +69,7 @@ func updateRPCComment(twirp *ast.GenDecl) {
 			}
 		case *dst.FuncDecl: // 函数处理注释
 			api := fmt.Sprintf(
-				"%s 实现 /twirp/%s.v%s.%s/%s 接口",
+				"%s 实现 /%s.v%s.%s/%s 接口",
 				d.Name.Name,
 				server,
 				version,

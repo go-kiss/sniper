@@ -104,11 +104,12 @@ message DownloadMsg {
   - json
   - protobuf
 
-最新版的[protobuf-gen-twirp](./cmd/protoc-gen-twirp)已经支持使用 prefix 参数自定义接口前缀了。
+最新版的[protobuf-gen-twirp](./cmd/protoc-gen-twirp)生成的 `*.twirp.go` 文件已经
+不再硬编码 `/twirp` 前缀。接口前缀可以通过 `RCP_PREFIX` 配置项控制，默认无前缀。
 
 表单请求
 ```
-POST /twirp/user.v0.Echo/Hello HTTP/1.1
+POST /user.v0.Echo/Hello HTTP/1.1
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 19
@@ -123,7 +124,7 @@ Content-Length: 27
 ```
 json 请求
 ```
-POST /twirp/user.v0.Echo/Hello HTTP/1.1
+POST /user.v0.Echo/Hello HTTP/1.1
 Host: example.com
 Content-Type: application/json
 Content-Length: 19
