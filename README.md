@@ -2,6 +2,8 @@
 
 [Sniper 的前世今生](./thought.md)
 
+有兴趣的同学也可以加我的微信`haitaotao`我拉大家进群讨论。
+
 ## 系统要求
 
 1. 类 UNIX 系统
