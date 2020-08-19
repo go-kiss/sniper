@@ -83,8 +83,16 @@ func updateRPCComment(twirp *ast.GenDecl) {
 					d.Decs.Start.Append(c.Text)
 				}
 			} else if !ok {
-				// 删除 proto 中不存在的方法
-				decls = decls[:len(decls)-1]
+				if d.Recv != nil && d.Name.IsExported() {
+					// 删除 proto 中不存在的方法
+					st, ok := d.Recv.List[0].Type.(*dst.StarExpr)
+					if ok {
+						x, ok := st.X.(*dst.Ident)
+						if ok && x.Name == upper1st(service)+"Server" {
+							decls = decls[:len(decls)-1]
+						}
+					}
+				}
 			}
 		}
 	}
@@ -189,7 +197,10 @@ func appendFunc(buf *bytes.Buffer, method *ast.Field) {
 	args.Name = method.Names[0].Name
 
 	ft := method.Type.(*ast.FuncType)
-	// 写死函数签名
+	// FIXME 写死函数签名
+	// 如果使用导入的 message 作为入参或出参，生成的代码会有语法错误！
+	// 但处理这类情况比较复杂，这类用法也比较少，先不处理。
+	// 先尽量使用自定义消息吧。
 	args.ReqType = ft.Params.List[1].Type.(*ast.StarExpr).X.(*ast.Ident).Name
 	args.RespType = ft.Results.List[0].Type.(*ast.StarExpr).X.(*ast.Ident).Name
 	args.Service = upper1st(service)
