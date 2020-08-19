@@ -18,17 +18,24 @@ import (
 	"fmt"
 	"os"
 
-	"sniper/cmd/protoc-gen-twirp/internal/gen"
+	"google.golang.org/protobuf/compiler/protogen"
 )
 
 func main() {
 	versionFlag := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 	if *versionFlag {
-		fmt.Println(gen.Version)
+		fmt.Println(Version)
 		os.Exit(0)
 	}
 
 	g := newGenerator()
-	gen.Main(g)
+
+	var flags flag.FlagSet
+
+	flags.StringVar(&g.OptionPrefix, "option_prefix", "sniper", "")
+
+	protogen.Options{
+		ParamFunc: flags.Set,
+	}.Run(g.Generate)
 }

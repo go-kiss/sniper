@@ -23,70 +23,57 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"log"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"sniper/cmd/protoc-gen-twirp/internal/gen"
-	"sniper/cmd/protoc-gen-twirp/internal/gen/stringutils"
-	"sniper/cmd/protoc-gen-twirp/internal/gen/typemap"
-
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"github.com/golang/protobuf/protoc-gen-go/generator"
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
-	"github.com/pkg/errors"
+	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-type twirp struct {
-	filesHandled   int
-	currentPackage string // Go name of current package we're working on
+const Version = "v0.1.0"
 
-	reg *typemap.Registry
+type twirp struct {
+	// OptionPrefix method_option flag
+	OptionPrefix string
+
+	filesHandled int
 
 	// Map to record whether we've built each package
 	pkgs          map[string]string
 	pkgNamesInUse map[string]bool
-
-	importPrefix string            // String to prefix to imported package file names.
-	importMap    map[string]string // Mapping from .proto file name to import path.
+	deps          map[string]string
 
 	methodOptionRegexp *regexp.Regexp
 
-	// Package output:
-	sourceRelativePaths bool // instruction on where to write output files
-
-	// Package naming:
-	genPkgName          string // Name of the package that we're generating
-	fileToGoPackageName map[*descriptor.FileDescriptorProto]string
-
-	// List of files that were inputs to the generator. We need to hold this in
-	// the struct so we can write a header for the file that lists its inputs.
-	genFiles []*descriptor.FileDescriptorProto
+	plugin *protogen.Plugin
 
 	// Output buffer that holds the bytes we want to write out for a single file.
 	// Gets reset after working on a file.
 	output *bytes.Buffer
 }
 
-func getFieldType(t string) (string, string) {
-	switch t {
-	case "TYPE_STRING":
+func getFieldType(k protoreflect.Kind) (string, string) {
+	switch k {
+	case protoreflect.StringKind:
 		return "string", ""
-	case "TYPE_DOUBLE":
+	case protoreflect.DoubleKind:
 		return "float", "64"
-	case "TYPE_FLOAT":
+	case protoreflect.FloatKind:
 		return "float", "32"
-	case "TYPE_INT32":
+	case protoreflect.Int32Kind:
 		return "int", "32"
-	case "TYPE_INT64":
+	case protoreflect.Int64Kind:
 		return "int", "64"
-	case "TYPE_UINT32":
+	case protoreflect.Uint32Kind:
 		return "uint", "32"
-	case "TYPE_UINT64":
+	case protoreflect.Uint64Kind:
 		return "uint", "64"
-	case "TYPE_BOOL":
+	case protoreflect.BoolKind:
 		return "bool", ""
 	default:
 		return "", ""
@@ -95,32 +82,19 @@ func getFieldType(t string) (string, string) {
 
 func newGenerator() *twirp {
 	t := &twirp{
-		pkgs:                make(map[string]string),
-		pkgNamesInUse:       make(map[string]bool),
-		importMap:           make(map[string]string),
-		fileToGoPackageName: make(map[*descriptor.FileDescriptorProto]string),
-		output:              bytes.NewBuffer(nil),
+		pkgs:          make(map[string]string),
+		pkgNamesInUse: make(map[string]bool),
+		deps:          make(map[string]string),
+		output:        bytes.NewBuffer(nil),
 	}
 
 	return t
 }
 
-func (t *twirp) Generate(in *plugin.CodeGeneratorRequest) *plugin.CodeGeneratorResponse {
-	params, err := parseCommandLineParams(in.GetParameter())
-	if err != nil {
-		gen.Fail("could not parse parameters passed to --twirp_out", err.Error())
-	}
-	t.importPrefix = params.importPrefix
-	t.importMap = params.importMap
+func (t *twirp) Generate(plugin *protogen.Plugin) error {
+	t.plugin = plugin
 
-	t.genFiles = gen.FilesToGenerate(in)
-
-	t.sourceRelativePaths = params.paths == "source_relative"
-
-	t.methodOptionRegexp = regexp.MustCompile(params.optionPrefix + `:([^:\s]+)`)
-
-	// Collect information on types.
-	t.reg = typemap.New(in.ProtoFile)
+	t.methodOptionRegexp = regexp.MustCompile(t.OptionPrefix + `:([^:\s]+)`)
 
 	// Register names of packages that we import.
 	t.registerPackageName("bytes")
@@ -138,39 +112,15 @@ func (t *twirp) Generate(in *plugin.CodeGeneratorRequest) *plugin.CodeGeneratorR
 	t.registerPackageName("errors")
 	t.registerPackageName("strconv")
 
-	// Time to figure out package names of objects defined in protobuf. First,
-	// we'll figure out the name for the package we're generating.
-	genPkgName, err := deduceGenPkgName(t.genFiles)
-	if err != nil {
-		gen.Fail(err.Error())
-	}
-	t.genPkgName = genPkgName
+	for _, f := range t.plugin.Files {
+		if len(f.Services) == 0 {
+			continue
+		}
 
-	// Next, we need to pick names for all the files that are dependencies.
-	for _, f := range in.ProtoFile {
-		if fileDescSliceContains(t.genFiles, f) {
-			// This is a file we are generating. It gets the shared package name.
-			t.fileToGoPackageName[f] = t.genPkgName
-		} else {
-			// This is a dependency. Use its package name.
-			name := f.GetPackage()
-			if name == "" {
-				name = stringutils.BaseName(f.GetName())
-			}
-			name = stringutils.CleanIdentifier(name)
-			alias := t.registerPackageName(name)
-			t.fileToGoPackageName[f] = alias
-		}
+		t.generate(f)
 	}
-	// Showtime! Generate the response.
-	resp := new(plugin.CodeGeneratorResponse)
-	for _, f := range t.genFiles {
-		respFile := t.generate(f)
-		if respFile != nil {
-			resp.File = append(resp.File, respFile)
-		}
-	}
-	return resp
+
+	return nil
 }
 
 func (t *twirp) registerPackageName(name string) (alias string) {
@@ -185,101 +135,33 @@ func (t *twirp) registerPackageName(name string) (alias string) {
 	return alias
 }
 
-// deduceGenPkgName figures out the go package name to use for generated code.
-// Will try to use the explicit go_package setting in a file (if set, must be
-// consistent in all files). If no files have go_package set, then use the
-// protobuf package name (must be consistent in all files)
-func deduceGenPkgName(genFiles []*descriptor.FileDescriptorProto) (string, error) {
-	var genPkgName string
-	for _, f := range genFiles {
-		name, explicit := goPackageName(f)
-		if explicit {
-			name = stringutils.CleanIdentifier(name)
-			if genPkgName != "" && genPkgName != name {
-				// Make sure they're all set consistently.
-				return "", errors.Errorf("files have conflicting go_package settings, must be the same: %q and %q", genPkgName, name)
-			}
-			genPkgName = name
-		}
-	}
-	if genPkgName != "" {
-		return genPkgName, nil
-	}
-
-	// If there is no explicit setting, then check the implicit package name
-	// (derived from the protobuf package name) of the files and make sure it's
-	// consistent.
-	for _, f := range genFiles {
-		name, _ := goPackageName(f)
-		name = stringutils.CleanIdentifier(name)
-		if genPkgName != "" && genPkgName != name {
-			return "", errors.Errorf("files have conflicting package names, must be the same or overridden with go_package: %q and %q", genPkgName, name)
-		}
-		genPkgName = name
-	}
-
-	// All the files have the same name, so we're good.
-	return genPkgName, nil
-}
-
-func (t *twirp) generate(file *descriptor.FileDescriptorProto) *plugin.CodeGeneratorResponse_File {
-	resp := new(plugin.CodeGeneratorResponse_File)
-	if len(file.Service) == 0 {
-		return nil
-	}
-
+func (t *twirp) generate(file *protogen.File) {
 	t.generateFileHeader(file)
 
 	t.generateImports(file)
 
-	// For each service, generate client stubs and server
-	for i, service := range file.Service {
+	for i, service := range file.Services {
 		t.generateService(file, service, i)
 	}
 
 	t.generateFileDescriptor(file)
 
-	resp.Name = proto.String(t.goFileName(file))
-	resp.Content = proto.String(t.formattedOutput())
+	fname := strings.Replace(*file.Proto.Name, ".proto", ".twirp.go", 1)
+	gf := t.plugin.NewGeneratedFile(fname, file.GoImportPath)
+	gf.Write(t.formattedOutput())
 	t.output.Reset()
 
 	t.filesHandled++
-	return resp
 }
 
-func (t *twirp) generateFileHeader(file *descriptor.FileDescriptorProto) {
-	t.P("// Code generated by protoc-gen-twirp ", gen.Version, ", DO NOT EDIT.")
-	t.P("// source: ", file.GetName())
-	t.P()
-	if t.filesHandled == 0 {
-		t.P("/*")
-		t.P("Package ", t.genPkgName, " is a generated twirp stub package.")
-		t.P("This code was generated with github.com/bilibili/sniper/cmd/protoc-gen-twirp ", gen.Version, ".")
-		t.P()
-		comment, err := t.reg.FileComments(file)
-		if err == nil && comment.Leading != "" {
-			for _, line := range strings.Split(comment.Leading, "\n") {
-				line = strings.TrimPrefix(line, " ")
-				// ensure we don't escape from the block comment
-				line = strings.Replace(line, "*/", "* /", -1)
-				t.P(line)
-			}
-			t.P()
-		}
-		t.P("It is generated from these files:")
-		for _, f := range t.genFiles {
-			t.P("\t", f.GetName())
-		}
-		t.P("*/")
-	}
-	t.P(`package `, t.genPkgName)
+func (t *twirp) generateFileHeader(file *protogen.File) {
+	t.P("// Package ", string(file.GoPackageName), " is generated by protoc-gen-twirp ", Version, ", DO NOT EDIT.")
+	t.P("// source: ", file.Desc.Path())
+	t.P(`package `, string(file.GoPackageName))
 	t.P()
 }
 
-func (t *twirp) generateImports(file *descriptor.FileDescriptorProto) {
-	if len(file.Service) == 0 {
-		return
-	}
+func (t *twirp) generateImports(file *protogen.File) {
 	t.P(`import `, t.pkgs["bytes"], ` "bytes"`)
 	t.P(`import `, t.pkgs["strings"], ` "strings"`)
 	t.P(`import `, t.pkgs["context"], ` "context"`)
@@ -297,40 +179,24 @@ func (t *twirp) generateImports(file *descriptor.FileDescriptorProto) {
 	// It's legal to import a message and use it as an input or output for a
 	// method. Make sure to import the package of any such message. First, dedupe
 	// them.
-	deps := make(map[string]string) // Map of package name to quoted import path.
-	ourImportPath := path.Dir(t.goFileName(file))
-	for _, s := range file.Service {
-		for _, m := range s.Method {
-			defs := []*typemap.MessageDefinition{
-				t.reg.MethodInputDefinition(m),
-				t.reg.MethodOutputDefinition(m),
-			}
+	for _, s := range file.Services {
+		for _, m := range s.Methods {
+			defs := []*protogen.Message{m.Input, m.Output}
 			for _, def := range defs {
-				// By default, import path is the dirname of the Go filename.
-				importPath := path.Dir(t.goFileName(def.File))
-				if importPath == ourImportPath {
+				if def.GoIdent.GoImportPath == file.GoImportPath {
 					continue
 				}
-
-				importPathOpt, _ := parseGoPackageOption(def.File.GetOptions().GetGoPackage())
-				if importPathOpt != "" {
-					importPath = importPathOpt
-				}
-
-				if substitution, ok := t.importMap[def.File.GetName()]; ok {
-					importPath = substitution
-				}
-				importPath = t.importPrefix + importPath
-				pkg := t.goPackageName(def.File)
-				deps[pkg] = strconv.Quote(importPath)
+				p := string(def.GoIdent.GoImportPath)
+				pkg := path.Base(p)
+				t.deps[pkg] = strconv.Quote(p)
 
 			}
 		}
 	}
-	for pkg, importPath := range deps {
+	for pkg, importPath := range t.deps {
 		t.P(`import `, pkg, ` `, importPath)
 	}
-	if len(deps) > 0 {
+	if len(t.deps) > 0 {
 		t.P()
 	}
 
@@ -357,57 +223,54 @@ func (t *twirp) sectionComment(sectionTitle string) {
 	t.P()
 }
 
-func (t *twirp) generateService(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, index int) {
-	servName := serviceName(service)
-
-	t.sectionComment(servName + ` Interface`)
+func (t *twirp) generateService(file *protogen.File, service *protogen.Service, index int) {
+	t.sectionComment(service.GoName + ` Interface`)
 	t.generateTwirpInterface(file, service)
 
-	t.sectionComment(servName + ` Protobuf Client`)
+	t.sectionComment(service.GoName + ` Protobuf Client`)
 	t.generateClient("Protobuf", file, service)
 
-	t.sectionComment(servName + ` JSON Client`)
+	t.sectionComment(service.GoName + ` JSON Client`)
 	t.generateClient("JSON", file, service)
 
-	// Server
-	t.sectionComment(servName + ` Server Handler`)
+	t.sectionComment(service.GoName + ` Server Handler`)
 	t.generateServer(file, service)
 }
 
-func (t *twirp) generateTwirpInterface(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
-	servName := serviceName(service)
-
-	comments, err := t.reg.ServiceComments(file, service)
-	if err == nil {
-		t.printComments(comments)
-	}
-	t.P(`type `, servName, ` interface {`)
-	for _, method := range service.Method {
-		comments, err = t.reg.MethodComments(file, service, method)
-		if err == nil {
-			t.printComments(comments)
-		}
+func (t *twirp) generateTwirpInterface(file *protogen.File, service *protogen.Service) {
+	t.printComments(service.Comments)
+	t.P(`type `, service.GoName, ` interface {`)
+	for _, method := range service.Methods {
+		t.printComments(method.Comments)
 		t.P(t.generateSignature(method))
 		t.P()
 	}
 	t.P(`}`)
 }
 
-func (t *twirp) generateSignature(method *descriptor.MethodDescriptorProto) string {
-	methName := methodName(method)
-	inputType := t.goTypeName(method.GetInputType())
-	outputType := t.goTypeName(method.GetOutputType())
+func (t *twirp) generateSignature(method *protogen.Method) string {
+	methName := method.GoName
+	inputType := t.getType(method.Input)
+	outputType := t.getType(method.Output)
 	return fmt.Sprintf(`	%s(%s.Context, *%s) (*%s, error)`, methName, t.pkgs["context"], inputType, outputType)
 }
 
+func (t *twirp) getType(m *protogen.Message) string {
+	pkg := path.Base(string(m.GoIdent.GoImportPath))
+	if _, ok := t.deps[pkg]; ok {
+		return pkg + "." + m.GoIdent.GoName
+	}
+	return m.GoIdent.GoName
+}
+
 // valid names: 'JSON', 'Protobuf'
-func (t *twirp) generateClient(name string, file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
-	servName := serviceName(service)
+func (t *twirp) generateClient(name string, file *protogen.File, service *protogen.Service) {
+	servName := service.GoName
 	pathPrefixConst := servName + "PathPrefix"
 	structName := unexported(servName) + name + "Client"
 	newClientFunc := "New" + servName + name + "Client"
 
-	methCnt := strconv.Itoa(len(service.Method))
+	methCnt := strconv.Itoa(len(service.Methods))
 	t.P(`type `, structName, ` struct {`)
 	t.P(`  client `, t.pkgs["twirp"], `.HTTPClient`)
 	t.P(`  urls   [`, methCnt, `]string`)
@@ -418,8 +281,8 @@ func (t *twirp) generateClient(name string, file *descriptor.FileDescriptorProto
 	t.P(`func `, newClientFunc, `(addr string, client `, t.pkgs["twirp"], `.HTTPClient) `, servName, ` {`)
 	t.P(`  prefix := addr + `, pathPrefixConst)
 	t.P(`  urls := [`, methCnt, `]string{`)
-	for _, method := range service.Method {
-		t.P(`    	prefix + "`, methodName(method), `",`)
+	for _, method := range service.Methods {
+		t.P(`    	prefix + "`, method.GoName, `",`)
 	}
 	t.P(`  }`)
 	t.P(`  return &`, structName, `{`)
@@ -429,14 +292,13 @@ func (t *twirp) generateClient(name string, file *descriptor.FileDescriptorProto
 	t.P(`}`)
 	t.P()
 
-	for i, method := range service.Method {
-		methName := methodName(method)
-		pkgName := pkgName(file)
-		inputType := t.goTypeName(method.GetInputType())
-		outputType := t.goTypeName(method.GetOutputType())
+	for i, method := range service.Methods {
+		methName := method.GoName
+		inputType := t.getType(method.Input)
+		outputType := t.getType(method.Output)
 
 		t.P(`func (c *`, structName, `) `, methName, `(ctx `, t.pkgs["context"], `.Context, in *`, inputType, `) (*`, outputType, `, error) {`)
-		t.P(`  ctx = `, t.pkgs["twirp"], `.WithPackageName(ctx, "`, pkgName, `")`)
+		t.P(`  ctx = `, t.pkgs["twirp"], `.WithPackageName(ctx, "`, *file.Proto.Package, `")`)
 		t.P(`  ctx = `, t.pkgs["twirp"], `.WithServiceName(ctx, "`, servName, `")`)
 		t.P(`  ctx = `, t.pkgs["twirp"], `.WithMethodName(ctx, "`, methName, `")`)
 		t.P(`  out := new(`, outputType, `)`)
@@ -450,8 +312,8 @@ func (t *twirp) generateClient(name string, file *descriptor.FileDescriptorProto
 	}
 }
 
-func (t *twirp) generateServer(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
-	servName := serviceName(service)
+func (t *twirp) generateServer(file *protogen.File, service *protogen.Service) {
+	servName := service.GoName
 
 	// Server implementation.
 	servStruct := serviceStruct(service)
@@ -495,7 +357,7 @@ func (t *twirp) generateServer(file *descriptor.FileDescriptorProto, service *de
 	t.generateServerRouting(servStruct, file, service)
 
 	// Methods.
-	for _, method := range service.Method {
+	for _, method := range service.Methods {
 		t.generateServerMethod(file, service, method)
 	}
 
@@ -505,31 +367,30 @@ func (t *twirp) generateServer(file *descriptor.FileDescriptorProto, service *de
 // pathPrefix returns the base path for all methods handled by a particular
 // service. It includes a trailing slash. (for example
 // "/twitch.example.Haberdasher/").
-func (t *twirp) pathPrefix(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) string {
-	return "/" + fullServiceName(file, service) + "/"
+func (t *twirp) pathPrefix(service *protogen.Service) string {
+	return "/" + string(service.Desc.FullName()) + "/"
 }
 
 // pathFor returns the complete path for requests to a particular method on a
 // particular service.
-func (t *twirp) pathFor(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, method *descriptor.MethodDescriptorProto) string {
-	return t.pathPrefix(file, service) + stringutils.CamelCase(method.GetName())
+func (t *twirp) pathFor(service *protogen.Service, method *protogen.Method) string {
+	return t.pathPrefix(service) + method.GoName
 }
 
-func (t *twirp) generateServerRouting(servStruct string, file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
-	pkgName := pkgName(file)
-	servName := serviceName(service)
+func (t *twirp) generateServerRouting(servStruct string, file *protogen.File, service *protogen.Service) {
+	servName := service.GoName
 
 	pathPrefixConst := servName + "PathPrefix"
 	t.P(`// `, pathPrefixConst, ` is used for all URL paths on a twirp `, servName, ` server.`)
 	t.P(`// Requests are always: POST `, pathPrefixConst, `/method`)
 	t.P(`// It can be used in an HTTP mux to route twirp requests along with non-twirp requests on other routes.`)
-	t.P(`const `, pathPrefixConst, ` = `, strconv.Quote(t.pathPrefix(file, service)))
+	t.P(`const `, pathPrefixConst, ` = `, strconv.Quote(t.pathPrefix(service)))
 	t.P()
 
 	t.P(`func (s *`, servStruct, `) ServeHTTP(resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  ctx := req.Context()`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithRequest(ctx, req)`)
-	t.P(`  ctx = `, t.pkgs["twirp"], `.WithPackageName(ctx, "`, pkgName, `")`)
+	t.P(`  ctx = `, t.pkgs["twirp"], `.WithPackageName(ctx, "`, *file.Proto.Package, `")`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithServiceName(ctx, "`, servName, `")`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithResponseWriter(ctx, resp)`)
 	t.P()
@@ -548,9 +409,9 @@ func (t *twirp) generateServerRouting(servStruct string, file *descriptor.FileDe
 	t.P(`  }`)
 	t.P()
 	t.P(`  switch req.URL.Path {`)
-	for _, method := range service.Method {
-		path := t.pathFor(file, service, method)
-		methName := "serve" + stringutils.CamelCase(method.GetName())
+	for _, method := range service.Methods {
+		path := t.pathFor(service, method)
+		methName := "serve" + method.GoName
 		t.P(`  case `, strconv.Quote(path), `:`)
 		t.P(`    s.`, methName, `(ctx, resp, req)`)
 		t.P(`    return`)
@@ -565,8 +426,8 @@ func (t *twirp) generateServerRouting(servStruct string, file *descriptor.FileDe
 	t.P()
 }
 
-func (t *twirp) generateServerMethod(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto, method *descriptor.MethodDescriptorProto) {
-	methName := stringutils.CamelCase(method.GetName())
+func (t *twirp) generateServerMethod(file *protogen.File, service *protogen.Service, method *protogen.Method) {
+	methName := method.GoName
 	servStruct := serviceStruct(service)
 	t.P(`func (s *`, servStruct, `) serve`, methName, `(ctx `, t.pkgs["context"], `.Context, resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  header := req.Header.Get("Content-Type")`)
@@ -575,11 +436,9 @@ func (t *twirp) generateServerMethod(file *descriptor.FileDescriptorProto, servi
 	t.P(`    i = len(header)`)
 	t.P(`  }`)
 
-	if mc, err := t.reg.MethodComments(file, service, method); err == nil {
-		matched := t.methodOptionRegexp.FindStringSubmatch(mc.Trailing)
-		if len(matched) == 2 {
-			t.P(`  ctx = twirp.WithMethodOption(ctx, "`, matched[1], `")`)
-		}
+	matched := t.methodOptionRegexp.FindStringSubmatch(method.Comments.Trailing.String())
+	if len(matched) == 2 {
+		t.P(`  ctx = twirp.WithMethodOption(ctx, "`, matched[1], `")`)
 	}
 
 	t.P(`  switch strings.TrimSpace(strings.ToLower(header[:i])) {`)
@@ -597,10 +456,10 @@ func (t *twirp) generateServerMethod(file *descriptor.FileDescriptorProto, servi
 	t.generateServerFormMethod(service, method)
 }
 
-func (t *twirp) generateServerJSONMethod(service *descriptor.ServiceDescriptorProto, method *descriptor.MethodDescriptorProto) {
+func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *protogen.Method) {
 	servStruct := serviceStruct(service)
-	methName := stringutils.CamelCase(method.GetName())
-	servName := serviceName(service)
+	methName := method.GoName
+	servName := service.GoName
 	t.P(`func (s *`, servStruct, `) serve`, methName, `JSON(ctx `, t.pkgs["context"], `.Context, resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  var err error`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithMethodName(ctx, "`, methName, `")`)
@@ -610,7 +469,7 @@ func (t *twirp) generateServerJSONMethod(service *descriptor.ServiceDescriptorPr
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
-	t.P(`  reqContent := new(`, t.goTypeName(method.GetInputType()), `)`)
+	t.P(`  reqContent := new(`, t.getType(method.Input), `)`)
 	t.P(`  unmarshaler := `, t.pkgs["jsonpb"], `.Unmarshaler{AllowUnknownFields: true}`)
 	t.P(`  if err = unmarshaler.Unmarshal(req.Body, reqContent); err != nil {`)
 	t.P(`    err = s.wrapErr(err, "failed to parse request json")`)
@@ -621,7 +480,7 @@ func (t *twirp) generateServerJSONMethod(service *descriptor.ServiceDescriptorPr
 	t.P(`  }`)
 	t.P()
 	t.P(`  // Call service method`)
-	t.P(`  var respContent *`, t.goTypeName(method.GetOutputType()))
+	t.P(`  var respContent *`, t.getType(method.Output))
 	t.P(`  func() {`)
 	t.P(`    defer func() {`)
 	t.P(`      // In case of a panic, serve a 500 error and then panic.`)
@@ -638,7 +497,7 @@ func (t *twirp) generateServerJSONMethod(service *descriptor.ServiceDescriptorPr
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P(`  if respContent == nil {`)
-	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalError("received a nil *`, t.goTypeName(method.GetOutputType()), ` and nil error while calling `, methName, `. nil responses are not supported"))`)
+	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalError("received a nil *`, t.getType(method.Output), ` and nil error while calling `, methName, `. nil responses are not supported"))`)
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
@@ -689,9 +548,9 @@ func (t *twirp) generateServerJSONMethod(service *descriptor.ServiceDescriptorPr
 	t.P()
 }
 
-func (t *twirp) generateServerFormMethod(service *descriptor.ServiceDescriptorProto, method *descriptor.MethodDescriptorProto) {
+func (t *twirp) generateServerFormMethod(service *protogen.Service, method *protogen.Method) {
 	servStruct := serviceStruct(service)
-	methName := stringutils.CamelCase(method.GetName())
+	methName := method.GoName
 	t.P(`func (s *`, servStruct, `) serve`, methName, `Form(ctx `, t.pkgs["context"], `.Context, resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  var err error`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithMethodName(ctx, "`, methName, `")`)
@@ -707,26 +566,23 @@ func (t *twirp) generateServerFormMethod(service *descriptor.ServiceDescriptorPr
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
-	t.P(`  reqContent := new(`, t.goTypeName(method.GetInputType()), `)`)
+	t.P(`  reqContent := new(`, t.getType(method.Input), `)`)
 	t.P()
 
-	inputType := method.GetInputType()
-	message := t.reg.MessageDefinition(inputType)
-
-	for _, field := range message.Descriptor.Field {
-		ft, fs := getFieldType(field.Type.String())
+	for _, field := range method.Input.Fields {
+		ft, fs := getFieldType(field.Desc.Kind())
 
 		if ft == "" {
 			continue
 		}
 
-		t.P(`  if v, ok := req.Form["`, *field.Name, `"]; ok {`)
-		if *field.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED {
+		t.P(`  if v, ok := req.Form["`, string(field.Desc.Name()), `"]; ok {`)
+		if field.Desc.IsList() {
 			t.P(`    if len(v) == 1 {`)
 			t.P(`        v = strings.Split(v[0], ",")`)
 			t.P(`    }`)
 			if ft == "string" {
-				t.P(`    reqContent.`, generator.CamelCase(*field.Name), ` = v `)
+				t.P(`    reqContent.`, field.GoName, ` = v `)
 			} else {
 				t.P(`    vs := make([]`, ft, fs, `, 0, len(v))`)
 				t.P(`    for _, vv := range(v) {`)
@@ -735,32 +591,32 @@ func (t *twirp) generateServerFormMethod(service *descriptor.ServiceDescriptorPr
 				} else if ft == "bool" {
 					t.P(`      vvv, err := strconv.ParseBool(vv)`)
 				} else {
-					t.P(`      vvv, err := strconv.Parse`, generator.CamelCase(ft), `(vv, 10, `, fs, `)`)
+					t.P(`      vvv, err := strconv.Parse`, exported(ft), `(vv, 10, `, fs, `)`)
 				}
 				t.P(`      if err != nil {`)
-				t.P(`        s.writeError(ctx, resp, twirp.InvalidArgumentError("`, *field.Name, `", err.Error()))`)
+				t.P(`        s.writeError(ctx, resp, twirp.InvalidArgumentError("`, string(field.Desc.Name()), `", err.Error()))`)
 				t.P(`        return`)
 				t.P(`      }`)
 				t.P(`    vs = append(vs, `, ft, fs, `(vvv))`)
 				t.P(`    }`)
-				t.P(`    reqContent.`, generator.CamelCase(*field.Name), ` = vs`)
+				t.P(`    reqContent.`, field.GoName, ` = vs`)
 			}
 		} else {
 			if ft == "string" {
-				t.P(`    reqContent.`, generator.CamelCase(*field.Name), ` = v[0] `)
+				t.P(`    reqContent.`, field.GoName, ` = v[0] `)
 			} else {
 				if ft == "float" {
 					t.P(`    vv, err := strconv.ParseFloat(v[0], `, fs, `)`)
 				} else if ft == "bool" {
 					t.P(`    vv, err := strconv.ParseBool(v[0])`)
 				} else {
-					t.P(`    vv, err := strconv.Parse`, generator.CamelCase(ft), `(v[0], 10, `, fs, `)`)
+					t.P(`    vv, err := strconv.Parse`, exported(ft), `(v[0], 10, `, fs, `)`)
 				}
 				t.P(`    if err != nil {`)
-				t.P(`      s.writeError(ctx, resp, twirp.InvalidArgumentError("`, *field.Name, `", err.Error()))`)
+				t.P(`      s.writeError(ctx, resp, twirp.InvalidArgumentError("`, string(field.Desc.Name()), `", err.Error()))`)
 				t.P(`      return`)
 				t.P(`    }`)
-				t.P(`    reqContent.`, generator.CamelCase(*field.Name), ` = `, ft, fs, `(vv)`)
+				t.P(`    reqContent.`, field.GoName, ` = `, ft, fs, `(vv)`)
 			}
 		}
 		t.P(`  }`)
@@ -768,7 +624,7 @@ func (t *twirp) generateServerFormMethod(service *descriptor.ServiceDescriptorPr
 
 	t.P()
 	t.P(`  // Call service method`)
-	t.P(`  var respContent *`, t.goTypeName(method.GetOutputType()))
+	t.P(`  var respContent *`, t.getType(method.Output))
 	t.P(`  func() {`)
 	t.P(`    defer func() {`)
 	t.P(`      // In case of a panic, serve a 500 error and then panic.`)
@@ -785,7 +641,7 @@ func (t *twirp) generateServerFormMethod(service *descriptor.ServiceDescriptorPr
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P(`  if respContent == nil {`)
-	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalError("received a nil *`, t.goTypeName(method.GetOutputType()), ` and nil error while calling `, methName, `. nil responses are not supported"))`)
+	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalError("received a nil *`, t.getType(method.Output), ` and nil error while calling `, methName, `. nil responses are not supported"))`)
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
@@ -836,10 +692,10 @@ func (t *twirp) generateServerFormMethod(service *descriptor.ServiceDescriptorPr
 	t.P()
 }
 
-func (t *twirp) generateServerProtobufMethod(service *descriptor.ServiceDescriptorProto, method *descriptor.MethodDescriptorProto) {
+func (t *twirp) generateServerProtobufMethod(service *protogen.Service, method *protogen.Method) {
 	servStruct := serviceStruct(service)
-	methName := stringutils.CamelCase(method.GetName())
-	servName := serviceName(service)
+	methName := method.GoName
+	servName := service.GoName
 	t.P(`func (s *`, servStruct, `) serve`, methName, `Protobuf(ctx `, t.pkgs["context"], `.Context, resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  var err error`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithMethodName(ctx, "`, methName, `")`)
@@ -855,7 +711,7 @@ func (t *twirp) generateServerProtobufMethod(service *descriptor.ServiceDescript
 	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalErrorWith(err))`)
 	t.P(`    return`)
 	t.P(`  }`)
-	t.P(`  reqContent := new(`, t.goTypeName(method.GetInputType()), `)`)
+	t.P(`  reqContent := new(`, t.getType(method.Input), `)`)
 	t.P(`  if err = `, t.pkgs["proto"], `.Unmarshal(buf, reqContent); err != nil {`)
 	t.P(`    err = s.wrapErr(err, "failed to parse request proto")`)
 	t.P(`    twerr := `, t.pkgs["twirp"], `.NewError(`, t.pkgs["twirp"], `.InvalidArgument, err.Error())`)
@@ -865,7 +721,7 @@ func (t *twirp) generateServerProtobufMethod(service *descriptor.ServiceDescript
 	t.P(`  }`)
 	t.P()
 	t.P(`  // Call service method`)
-	t.P(`  var respContent *`, t.goTypeName(method.GetOutputType()))
+	t.P(`  var respContent *`, t.getType(method.Output))
 	t.P(`  func() {`)
 	t.P(`    defer func() {`)
 	t.P(`      // In case of a panic, serve a 500 error and then panic.`)
@@ -882,7 +738,7 @@ func (t *twirp) generateServerProtobufMethod(service *descriptor.ServiceDescript
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P(`  if respContent == nil {`)
-	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalError("received a nil *`, t.goTypeName(method.GetOutputType()), ` and nil error while calling `, methName, `. nil responses are not supported"))`)
+	t.P(`    s.writeError(ctx, resp, `, t.pkgs["twirp"], `.InternalError("received a nil *`, t.getType(method.Output), ` and nil error while calling `, methName, `. nil responses are not supported"))`)
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
@@ -938,18 +794,19 @@ func (t *twirp) generateServerProtobufMethod(service *descriptor.ServiceDescript
 // protoc-gen-gogo - with a different name! Twirp aims to be compatible with
 // both; the simplest way forward is to write the file descriptor again as
 // another variable that we control.
-func (t *twirp) serviceMetadataVarName(file *descriptor.FileDescriptorProto) string {
+func (t *twirp) serviceMetadataVarName(file *protogen.File) string {
 	h := sha1.New()
-	io.WriteString(h, *file.Name)
+	io.WriteString(h, *file.Proto.Name)
 	return fmt.Sprintf("twirpFileDescriptor%dSHA%x", t.filesHandled, h.Sum(nil))
 }
 
-func (t *twirp) generateServiceMetadataAccessors(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) {
+func (t *twirp) generateServiceMetadataAccessors(file *protogen.File, service *protogen.Service) {
 	servStruct := serviceStruct(service)
 	index := 0
-	for i, s := range file.Service {
-		if s.GetName() == service.GetName() {
+	for i, s := range file.Services {
+		if s.GoName == service.GoName {
 			index = i
+			break
 		}
 	}
 	t.P(`func (s *`, servStruct, `) ServiceDescriptor() ([]byte, int) {`)
@@ -957,18 +814,18 @@ func (t *twirp) generateServiceMetadataAccessors(file *descriptor.FileDescriptor
 	t.P(`}`)
 	t.P()
 	t.P(`func (s *`, servStruct, `) ProtocGenTwirpVersion() (string) {`)
-	t.P(`  return `, strconv.Quote(gen.Version))
+	t.P(`  return `, strconv.Quote(Version))
 	t.P(`}`)
 }
 
-func (t *twirp) generateFileDescriptor(file *descriptor.FileDescriptorProto) {
+func (t *twirp) generateFileDescriptor(file *protogen.File) {
 	// Copied straight of of protoc-gen-go, which trims out comments.
-	pb := proto.Clone(file).(*descriptor.FileDescriptorProto)
+	pb := proto.Clone(file.Proto).(*descriptorpb.FileDescriptorProto)
 	pb.SourceCodeInfo = nil
 
 	b, err := proto.Marshal(pb)
 	if err != nil {
-		gen.Fail(err.Error())
+		log.Fatal(err)
 	}
 
 	var buf bytes.Buffer
@@ -998,44 +855,19 @@ func (t *twirp) generateFileDescriptor(file *descriptor.FileDescriptorProto) {
 	t.P("}")
 }
 
-func (t *twirp) printComments(comments typemap.DefinitionComments) bool {
-	text := strings.TrimSuffix(comments.Leading, "\n")
+func (t *twirp) printComments(comments protogen.CommentSet) bool {
+	text := strings.TrimSuffix(comments.Leading.String(), "\n")
 	if len(strings.TrimSpace(text)) == 0 {
 		return false
 	}
 	split := strings.Split(text, "\n")
 	for _, line := range split {
-		t.P("// ", strings.TrimPrefix(line, " "))
+		t.P(strings.TrimPrefix(line, " "))
 	}
 	return len(split) > 0
 }
 
-// Given a protobuf name for a Message, return the Go name we will use for that
-// type, including its package prefix.
-func (t *twirp) goTypeName(protoName string) string {
-	def := t.reg.MessageDefinition(protoName)
-	if def == nil {
-		gen.Fail("could not find message for", protoName)
-	}
-
-	var prefix string
-	if pkg := t.goPackageName(def.File); pkg != t.genPkgName {
-		prefix = pkg + "."
-	}
-
-	var name string
-	for _, parent := range def.Lineage() {
-		name += parent.Descriptor.GetName() + "_"
-	}
-	name += def.Descriptor.GetName()
-	return prefix + name
-}
-
-func (t *twirp) goPackageName(file *descriptor.FileDescriptorProto) string {
-	return t.fileToGoPackageName[file]
-}
-
-func (t *twirp) formattedOutput() string {
+func (t *twirp) formattedOutput() []byte {
 	// Reformat generated code.
 	fset := token.NewFileSet()
 	raw := t.output.Bytes()
@@ -1049,49 +881,22 @@ func (t *twirp) formattedOutput() string {
 		for line := 1; s.Scan(); line++ {
 			fmt.Fprintf(&src, "%5d\t%s\n", line, s.Bytes())
 		}
-		gen.Fail("bad Go source code was generated:", err.Error(), "\n"+src.String())
+		log.Fatal("bad Go source code was generated:", err.Error(), "\n"+src.String())
 	}
 
 	out := bytes.NewBuffer(nil)
 	err = (&printer.Config{Mode: printer.TabIndent | printer.UseSpaces, Tabwidth: 8}).Fprint(out, fset, ast)
 	if err != nil {
-		gen.Fail("generated Go source code could not be reformatted:", err.Error())
+		log.Fatal("generated Go source code could not be reformatted:", err.Error())
 	}
 
-	return out.String()
+	return out.Bytes()
 }
 
 func unexported(s string) string { return strings.ToLower(s[:1]) + s[1:] }
 
-func fullServiceName(file *descriptor.FileDescriptorProto, service *descriptor.ServiceDescriptorProto) string {
-	name := stringutils.CamelCase(service.GetName())
-	if pkg := pkgName(file); pkg != "" {
-		name = pkg + "." + name
-	}
-	return name
-}
+func exported(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
 
-func pkgName(file *descriptor.FileDescriptorProto) string {
-	return file.GetPackage()
-}
-
-func serviceName(service *descriptor.ServiceDescriptorProto) string {
-	return stringutils.CamelCase(service.GetName())
-}
-
-func serviceStruct(service *descriptor.ServiceDescriptorProto) string {
-	return unexported(serviceName(service)) + "Server"
-}
-
-func methodName(method *descriptor.MethodDescriptorProto) string {
-	return stringutils.CamelCase(method.GetName())
-}
-
-func fileDescSliceContains(slice []*descriptor.FileDescriptorProto, f *descriptor.FileDescriptorProto) bool {
-	for _, sf := range slice {
-		if f == sf {
-			return true
-		}
-	}
-	return false
+func serviceStruct(service *protogen.Service) string {
+	return unexported(service.GoName) + "Server"
 }

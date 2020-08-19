@@ -11,8 +11,6 @@ syntax = "proto3";
 
 package {{.Server}}.v{{.Version}};
 
-option go_package="{{.Server}}_v{{.Version}}";
-
 // FIXME 服务必须写注释
 service {{.Service}} {
     // FIXME 接口必须写注释
