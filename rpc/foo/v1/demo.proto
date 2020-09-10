@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package foo.v1;
+
+
+service Demo {
+    // @auth
+    rpc Numerics(NumericsReq) returns (Empty);
+    // @auth
+    rpc Strings(StringsReq) returns (Empty);
+    rpc Repeated(RepeatedReq) returns (Empty);
+}
+
+message RepeatedReq {
+    // @min_items:5
+    // @max_items:10
+    repeated NumericsReq b = 2;
+    // @gt:10
+    // @lt:10
+    repeated float e = 5;
+    // @min_items:3
+    repeated int32 a = 1;
+    // @unique:true
+    repeated int64 d = 4;
+}
+
+message Empty {}
+
+
+message NumericsReq {
+    // @eq:1.23
+    float a = 1;
+    // @lt:10
+    int32 b = 2;
+    // @gte:20
+    uint64 c = 3;
+    // @gte:20
+    // @lte:40
+    // @in:[1,2,3]
+    fixed32 g = 7;
+    // @in:[1,2,3]
+    uint32 e = 5;
+    // @not_in:[1,2,3]
+    float f = 6;
+}
+
+message StringsReq {
+    // @eq:"foo"
+    string a = 1;
+    // @len:5
+    string b = 2;
+    // @min_len:5
+    string c = 3;
+    // @max_len:5
+    string d = 4;
+    // @pattern:"(?i)^[0-9a-f]+$"
+    string g = 7;
+    // @prefix:"foo"
+    string h = 8;
+    // @suffix:"bar"
+    string i = 9;
+    // @contains:"bar"
+    string j = 10;
+    // @not_contains:"bar"
+    string k = 11;
+    // @in:["foo", "bar", "baz"]
+    string n = 14;
+    // @not_in:["foo", "bar", "baz"]
+    string o = 15;
+}
+

@@ -34,6 +34,7 @@ func main() {
 	var flags flag.FlagSet
 
 	flags.StringVar(&g.OptionPrefix, "option_prefix", "sniper", "")
+	flags.StringVar(&g.TwirpPackage, "twirp_package", "sniper/util/twirp", "")
 
 	protogen.Options{
 		ParamFunc: flags.Set,

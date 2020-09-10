@@ -4,5 +4,6 @@ coverage.out
 *.DS_Store
 *.twirp.go
 *.pb.go
+*.validate.go
 vendor
 rpc/**/*.md

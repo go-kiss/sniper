@@ -28,6 +28,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
+
+	"sniper/cmd/protoc-gen-twirp/templates"
+	"sniper/cmd/protoc-gen-twirp/templates/rule"
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
@@ -40,6 +44,10 @@ const Version = "v0.1.0"
 type twirp struct {
 	// OptionPrefix method_option flag
 	OptionPrefix string
+	// TwirpPackage twirp 运行库包名
+	// 默认为 sniper/util/twirp，用户可以使用 twirp_package 定制
+	// 如果修改过项目的默认包名(sniper)则一定需要指定
+	TwirpPackage string
 
 	filesHandled int
 
@@ -111,6 +119,7 @@ func (t *twirp) Generate(plugin *protogen.Plugin) error {
 	t.registerPackageName("fmt")
 	t.registerPackageName("errors")
 	t.registerPackageName("strconv")
+	t.registerPackageName("ctxkit")
 
 	for _, f := range t.plugin.Files {
 		if len(f.Services) == 0 {
@@ -118,6 +127,8 @@ func (t *twirp) Generate(plugin *protogen.Plugin) error {
 		}
 
 		t.generate(f)
+		t.generateValidate(f)
+		t.filesHandled++
 	}
 
 	return nil
@@ -146,12 +157,26 @@ func (t *twirp) generate(file *protogen.File) {
 
 	t.generateFileDescriptor(file)
 
-	fname := strings.Replace(*file.Proto.Name, ".proto", ".twirp.go", 1)
+	fname := file.GeneratedFilenamePrefix + ".twirp.go"
 	gf := t.plugin.NewGeneratedFile(fname, file.GoImportPath)
-	gf.Write(t.formattedOutput())
+	gf.Write(t.formattedOutput(t.output.Bytes()))
 	t.output.Reset()
+}
 
-	t.filesHandled++
+func (t *twirp) generateValidate(file *protogen.File) {
+	fname := file.GeneratedFilenamePrefix + ".validate.go"
+
+	tpl := template.New(fname)
+	rule.RegisterFunctions(tpl)
+	templates.Register(tpl)
+
+	buf := &bytes.Buffer{}
+	if err := tpl.Execute(buf, file); err != nil {
+		panic(err)
+	}
+
+	gf := t.plugin.NewGeneratedFile(fname, file.GoImportPath)
+	gf.Write(t.formattedOutput(buf.Bytes()))
 }
 
 func (t *twirp) generateFileHeader(file *protogen.File) {
@@ -173,7 +198,8 @@ func (t *twirp) generateImports(file *protogen.File) {
 	t.P()
 	t.P(`import `, t.pkgs["jsonpb"], ` "github.com/golang/protobuf/jsonpb"`)
 	t.P(`import `, t.pkgs["proto"], ` "github.com/golang/protobuf/proto"`)
-	t.P(`import `, t.pkgs["twirp"], ` "sniper/util/twirp"`)
+	t.P(`import `, t.pkgs["ctxkit"], ` "sniper/util/ctxkit"`)
+	t.P(`import `, t.pkgs["twirp"], fmt.Sprintf(` "%s"`, t.TwirpPackage))
 	t.P()
 
 	// It's legal to import a message and use it as an input or output for a
@@ -203,6 +229,7 @@ func (t *twirp) generateImports(file *protogen.File) {
 	t.P(`// If the request does not have any number filed, the strconv`)
 	t.P(`// is not needed. However, there is no easy way to drop it.`)
 	t.P(`var _ = `, t.pkgs["strconv"], `.IntSize`)
+	t.P(`var _ = `, t.pkgs["ctxkit"], `.GetUserID`)
 	t.P()
 }
 
@@ -389,7 +416,7 @@ func (t *twirp) generateServerRouting(servStruct string, file *protogen.File, se
 
 	t.P(`func (s *`, servStruct, `) ServeHTTP(resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  ctx := req.Context()`)
-	t.P(`  ctx = `, t.pkgs["twirp"], `.WithRequest(ctx, req)`)
+	t.P(`  ctx = `, t.pkgs["twirp"], `.WithHttpRequest(ctx, req)`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithPackageName(ctx, "`, *file.Proto.Package, `")`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithServiceName(ctx, "`, servName, `")`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithResponseWriter(ctx, resp)`)
@@ -451,12 +478,16 @@ func (t *twirp) generateServerMethod(file *protogen.File, service *protogen.Serv
 	t.P(`  }`)
 	t.P(`}`)
 	t.P()
-	t.generateServerJSONMethod(service, method)
-	t.generateServerProtobufMethod(service, method)
-	t.generateServerFormMethod(service, method)
+	t.generateServerJSONMethod(service, method, file)
+	t.generateServerProtobufMethod(service, method, file)
+	t.generateServerFormMethod(service, method, file)
 }
 
-func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *protogen.Method) {
+func (t *twirp) needLogin(method *protogen.Method) bool {
+	return strings.Contains(string(method.Comments.Leading), "@auth\n")
+}
+
+func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *protogen.Method, file *protogen.File) {
 	servStruct := serviceStruct(service)
 	methName := method.GoName
 	servName := service.GoName
@@ -479,6 +510,19 @@ func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *prot
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
+	t.P(`  ctx = twirp.WithRequest(ctx, reqContent)`)
+	t.P(`  if  validerr := reqContent.validate(); validerr != nil {`)
+	t.P(`    s.writeError(ctx, resp, twirp.InvalidArgumentError("argument", validerr.Error()))`)
+	t.P(`    return`)
+	t.P(`  }`)
+	t.P()
+	if t.needLogin(method) {
+		t.P(`  if ctxkit.GetUserID(ctx) == 0 {`)
+		t.P(`    s.writeError(ctx, resp, twirp.NewError(twirp.Unauthenticated, "unauthenticated"))`)
+		t.P(`    return`)
+		t.P(`  }`)
+		t.P()
+	}
 	t.P(`  // Call service method`)
 	t.P(`  var respContent *`, t.getType(method.Output))
 	t.P(`  func() {`)
@@ -548,7 +592,7 @@ func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *prot
 	t.P()
 }
 
-func (t *twirp) generateServerFormMethod(service *protogen.Service, method *protogen.Method) {
+func (t *twirp) generateServerFormMethod(service *protogen.Service, method *protogen.Method, file *protogen.File) {
 	servStruct := serviceStruct(service)
 	methName := method.GoName
 	t.P(`func (s *`, servStruct, `) serve`, methName, `Form(ctx `, t.pkgs["context"], `.Context, resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
@@ -568,6 +612,18 @@ func (t *twirp) generateServerFormMethod(service *protogen.Service, method *prot
 	t.P()
 	t.P(`  reqContent := new(`, t.getType(method.Input), `)`)
 	t.P()
+	t.P(`  if  validerr := reqContent.validate(); validerr != nil {`)
+	t.P(`    s.writeError(ctx, resp, twirp.InvalidArgumentError("argument", validerr.Error()))`)
+	t.P(`    return`)
+	t.P(`  }`)
+	t.P()
+	if t.needLogin(method) {
+		t.P(`  if ctxkit.GetUserID(ctx) == 0 {`)
+		t.P(`    s.writeError(ctx, resp, twirp.NewError(twirp.Unauthenticated, "unauthenticated"))`)
+		t.P(`    return`)
+		t.P(`  }`)
+		t.P()
+	}
 
 	for _, field := range method.Input.Fields {
 		ft, fs := getFieldType(field.Desc.Kind())
@@ -621,6 +677,8 @@ func (t *twirp) generateServerFormMethod(service *protogen.Service, method *prot
 		}
 		t.P(`  }`)
 	}
+	t.P(`  ctx = twirp.WithRequest(ctx, reqContent)`)
+	t.P()
 
 	t.P()
 	t.P(`  // Call service method`)
@@ -692,7 +750,7 @@ func (t *twirp) generateServerFormMethod(service *protogen.Service, method *prot
 	t.P()
 }
 
-func (t *twirp) generateServerProtobufMethod(service *protogen.Service, method *protogen.Method) {
+func (t *twirp) generateServerProtobufMethod(service *protogen.Service, method *protogen.Method, file *protogen.File) {
 	servStruct := serviceStruct(service)
 	methName := method.GoName
 	servName := service.GoName
@@ -720,6 +778,19 @@ func (t *twirp) generateServerProtobufMethod(service *protogen.Service, method *
 	t.P(`    return`)
 	t.P(`  }`)
 	t.P()
+	t.P(`  ctx = twirp.WithRequest(ctx, reqContent)`)
+	t.P(`  if  validerr := reqContent.validate(); validerr != nil {`)
+	t.P(`    s.writeError(ctx, resp, twirp.InvalidArgumentError("argument", validerr.Error()))`)
+	t.P(`    return`)
+	t.P(`  }`)
+	t.P()
+	if t.needLogin(method) {
+		t.P(`  if ctxkit.GetUserID(ctx) == 0 {`)
+		t.P(`    s.writeError(ctx, resp, twirp.NewError(twirp.Unauthenticated, "unauthenticated"))`)
+		t.P(`    return`)
+		t.P(`  }`)
+		t.P()
+	}
 	t.P(`  // Call service method`)
 	t.P(`  var respContent *`, t.getType(method.Output))
 	t.P(`  func() {`)
@@ -867,10 +938,9 @@ func (t *twirp) printComments(comments protogen.CommentSet) bool {
 	return len(split) > 0
 }
 
-func (t *twirp) formattedOutput() []byte {
+func (t *twirp) formattedOutput(raw []byte) []byte {
 	// Reformat generated code.
 	fset := token.NewFileSet()
-	raw := t.output.Bytes()
 	ast, err := parser.ParseFile(fset, "", raw, parser.ParseComments)
 	if err != nil {
 		// Print out the bad code with line numbers.
