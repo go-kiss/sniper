@@ -29,8 +29,9 @@ const (
 	PackageNameKey
 	StatusCodeKey
 	RequestHeaderKey
-	ResponseWriterKey
+	HttpRequestKey
 	RequestKey
+	ResponseWriterKey
 	ResponseKey
 	AllowGETKey
 	MethodOptionKey
@@ -70,11 +71,17 @@ func StatusCode(ctx context.Context) (string, bool) {
 	return code, ok
 }
 
-// Request retrieves the request.
+// HttpRequest retrieves the request.
 // If it is known returns (req, true).
 // If it is not known, it returns (nil, false).
-func Request(ctx context.Context) (*http.Request, bool) {
-	req, ok := ctx.Value(RequestKey).(*http.Request)
+func HttpRequest(ctx context.Context) (*http.Request, bool) {
+	req, ok := ctx.Value(HttpRequestKey).(*http.Request)
+	return req, ok
+}
+
+// Request 返回解析后的请求对象
+func Request(ctx context.Context) (proto.Message, bool) {
+	req, ok := ctx.Value(RequestKey).(proto.Message)
 	return req, ok
 }
 
