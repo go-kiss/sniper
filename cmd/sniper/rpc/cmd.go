@@ -25,10 +25,6 @@ var (
 
 	twirpFile, serverFile, rpcPkg string
 
-	hooks = "hooks"
-
-	needLogin bool
-
 	legacy = false
 )
 
@@ -41,7 +37,6 @@ func init() {
 	Cmd.Flags().StringVar(&server, "server", "", "服务包名")
 	Cmd.Flags().StringVar(&service, "service", "", "子服务名")
 	Cmd.Flags().StringVar(&version, "version", "1", "服务版本")
-	Cmd.Flags().BoolVar(&needLogin, "need-login", false, "是否校验登录态")
 
 	Cmd.MarkFlagRequired("server")
 }
@@ -76,10 +71,6 @@ var Cmd = &cobra.Command{
 - 生成 server/**/*.go 代码
 - 注册接口到 http server`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if needLogin {
-			hooks = "loginHooks"
-		}
-
 		if service == "" {
 			service = server
 		}

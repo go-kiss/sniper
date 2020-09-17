@@ -46,7 +46,11 @@ func WithResponseWriter(ctx context.Context, w http.ResponseWriter) context.Cont
 	return context.WithValue(ctx, ResponseWriterKey, w)
 }
 
-func WithRequest(ctx context.Context, r *http.Request) context.Context {
+func WithHttpRequest(ctx context.Context, r *http.Request) context.Context {
+	return context.WithValue(ctx, HttpRequestKey, r)
+}
+
+func WithRequest(ctx context.Context, r proto.Message) context.Context {
 	return context.WithValue(ctx, RequestKey, r)
 }
 
