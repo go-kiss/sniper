@@ -100,7 +100,6 @@ func genServerTemplate() {
 		Server:  server,
 		Version: version,
 		Service: upper1st(service),
-		Hooks:   hooks,
 	}
 	tmpl, err := template.New("test").Parse(regServerTpl)
 	if err != nil {

@@ -30,7 +30,7 @@ package main
 func main() {
 	{
 		server := &{{.Server}}server{{.Version}}.{{.Service}}Server{}
-		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, {{.Hooks}})
+		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, hooks)
 		mux.Handle({{.Server}}_v{{.Version}}.{{.Service}}PathPrefix, handler)
 	}
 }
@@ -73,7 +73,7 @@ package main
 func main() {
 	{
 		server := &{{.Server}}_v{{.Version}}.{{.Service}}Server{}
-		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, {{.Hooks}})
+		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, hooks)
 		mux.Handle({{.Server}}_v{{.Version}}.{{.Service}}PathPrefix, handler)
 	}
 }

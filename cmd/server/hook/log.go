@@ -40,12 +40,9 @@ func NewLog() *twirp.ServerHooks {
 			span, ctx := opentracing.StartSpanFromContext(ctx, "LogReq")
 			defer span.Finish()
 
-			status, _ := twirp.StatusCode(ctx)
-			req, _ := twirp.Request(ctx)
-			resp, _ := twirp.Response(ctx)
-
 			var bizCode int32
 			var bizMsg string
+			resp, _ := twirp.Response(ctx)
 			if br, ok := resp.(bizResponse); ok {
 				bizCode = br.GetCode()
 				bizMsg = br.GetMsg()
@@ -54,13 +51,15 @@ func NewLog() *twirp.ServerHooks {
 			start := ctx.Value(ctxkit.StartTimeKey).(time.Time)
 			duration := time.Since(start)
 
+			status, _ := twirp.StatusCode(ctx)
 			if _, ok := ctx.Deadline(); ok {
 				if ctx.Err() != nil {
 					status = "503"
 				}
 			}
 
-			path := req.URL.Path
+			hreq, _ := twirp.HttpRequest(ctx)
+			path := hreq.URL.Path
 
 			// 外部爬接口脚本会请求任意 API
 			// 导致 prometheus 无法展示数据
@@ -71,7 +70,7 @@ func NewLog() *twirp.ServerHooks {
 				).Observe(duration.Seconds())
 			}
 
-			form := req.Form
+			form := hreq.Form
 			// 移除日志中的敏感信息
 			if conf.IsProdEnv {
 				form.Del("access_key")

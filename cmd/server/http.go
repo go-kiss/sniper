@@ -13,12 +13,6 @@ var hooks = twirp.ChainHooks(
 	hook.NewLog(),
 )
 
-var loginHooks = twirp.ChainHooks(
-	hook.NewRequestID(),
-	hook.NewCheckLogin(),
-	hook.NewLog(),
-)
-
 func initMux(mux *http.ServeMux, isInternal bool) {
 }
 
