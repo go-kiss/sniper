@@ -1,7 +1,7 @@
 package rule
 
 const uniqueTpl = `
-	{{ .Field.GoIdent.GoName }}_Unique := make(map[int64]struct{}, len({{ .Key }}))
+	{{ .Field.GoIdent.GoName }}_Unique := make(map[{{ goType .Field.Desc.Kind }}]struct{}, len({{ .Key }}))
 
 	for idx, item := range {{ .Key }} {
 		_, _ = idx, item
