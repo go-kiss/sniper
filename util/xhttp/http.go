@@ -7,6 +7,7 @@ package xhttp
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -33,11 +34,27 @@ type Client interface {
 
 // NewClient 创建 Client 实例
 func NewClient(timeout time.Duration) Client {
-	return &myClient{
+	c := &myClient{
 		cli: &http.Client{
 			Timeout: timeout,
 		},
 	}
+
+	return c
+}
+
+// NewInsecureClient 创建不校验证书的 Client 实例
+func NewInsecureClient(timeout time.Duration) Client {
+	defaultTransport := http.DefaultTransport.(*http.Transport)
+	defaultTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	c := &myClient{
+		cli: &http.Client{
+			Timeout:   timeout,
+			Transport: defaultTransport,
+		},
+	}
+
+	return c
 }
 
 var digitsRE = regexp.MustCompile(`\b\d+\b`)
