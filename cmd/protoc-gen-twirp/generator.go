@@ -605,7 +605,6 @@ func (t *twirp) generateServerFormMethod(service *protogen.Service, method *prot
 	t.P()
 	t.P(`  reqContent := new(`, t.getType(method.Input), `)`)
 	t.P()
-	t.addValidate(method, service)
 
 	for _, field := range method.Input.Fields {
 		ft, fs := getFieldType(field.Desc.Kind())
@@ -661,6 +660,7 @@ func (t *twirp) generateServerFormMethod(service *protogen.Service, method *prot
 	}
 	t.P(`  ctx = twirp.WithRequest(ctx, reqContent)`)
 	t.P()
+	t.addValidate(method, service)
 
 	t.P()
 	t.P(`  // Call service method`)
