@@ -71,6 +71,10 @@ func NewLog() *twirp.ServerHooks {
 			}
 
 			form := hreq.Form
+			// 新版本采用json/protobuf形式，公共参数需要读取query
+			if len(form) == 0 {
+				form = hreq.URL.Query()
+			}
 			// 移除日志中的敏感信息
 			if conf.IsProdEnv {
 				form.Del("access_key")
