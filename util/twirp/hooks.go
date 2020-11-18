@@ -142,8 +142,9 @@ func (h *ServerHooks) WriteError(ctx context.Context, resp http.ResponseWriter, 
 func marshalErrorToJSON(twerr Error) []byte {
 	// make sure that msg is not too large
 	msg := twerr.Msg()
-	if len(msg) > 1e6 {
-		msg = msg[:1e6]
+	maxLen := int(1e6)
+	if len(msg) > maxLen {
+		msg = msg[:maxLen]
 	}
 
 	type twerrJSON struct {
