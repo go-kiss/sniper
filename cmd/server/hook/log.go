@@ -18,12 +18,6 @@ type bizResponse interface {
 	GetMsg() string
 }
 
-type ctxKeyType int
-
-const (
-	sendRespKey ctxKeyType = iota
-)
-
 // NewLog 统一记录请求日志
 func NewLog() *twirp.ServerHooks {
 	return &twirp.ServerHooks{
