@@ -108,6 +108,17 @@ func InjectTraceHeader(ctx opentracing.SpanContext, req *http.Request) {
 	}
 }
 
+// StartFollowSpanFromContext 开起一个 follow 类型 span
+// follow 类型用于异步任务，可能在 root span 结束之后才完成。
+func StartFollowSpanFromContext(ctx context.Context, operation string) (opentracing.Span, context.Context) {
+	span := opentracing.SpanFromContext(ctx)
+	if span == nil {
+		return opentracing.StartSpanFromContext(ctx, operation)
+	}
+
+	return opentracing.StartSpanFromContext(ctx, operation, opentracing.FollowsFrom(span.Context()))
+}
+
 // Stop 停止 trace 协程
 func Stop() {
 	closer.Close()
