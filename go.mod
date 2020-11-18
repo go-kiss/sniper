@@ -7,7 +7,6 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dave/dst v0.25.5
 	github.com/fsnotify/fsnotify v1.4.7
-	github.com/golang/protobuf v1.4.2
 	github.com/jarcoal/httpmock v1.0.3
 	github.com/k0kubun/pp/v3 v3.0.3
 	github.com/mattn/go-isatty v0.0.12

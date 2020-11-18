@@ -12,8 +12,8 @@ import (
 
 	"sniper/util/errors"
 
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/http2"
+	"google.golang.org/protobuf/proto"
 )
 
 type GrpcClient interface {

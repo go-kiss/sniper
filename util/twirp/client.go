@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"strconv"
 
-	jsonpb "github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // HTTPClient is the interface used by generated clients to send HTTP requests.
@@ -77,14 +77,16 @@ func DoProtobufRequest(ctx context.Context, client HTTPClient, url string, in, o
 
 // DoJSONRequest is common code to make a request to the remote twirp service.
 func DoJSONRequest(ctx context.Context, client HTTPClient, url string, in, out proto.Message) (err error) {
-	reqBody := bytes.NewBuffer(nil)
-	marshaler := &jsonpb.Marshaler{OrigName: true}
-	if err = marshaler.Marshal(reqBody, in); err != nil {
+	marshaler := protojson.MarshalOptions{UseProtoNames: true}
+	var buf []byte
+	if buf, err = marshaler.Marshal(in); err != nil {
 		return clientError("failed to marshal json request", err)
 	}
 	if err = ctx.Err(); err != nil {
 		return clientError("aborted because context was done", err)
 	}
+
+	reqBody := bytes.NewReader(buf)
 
 	req, err := newRequest(ctx, url, reqBody, "application/json")
 	if err != nil {
@@ -110,8 +112,12 @@ func DoJSONRequest(ctx context.Context, client HTTPClient, url string, in, out p
 		return errorFromResponse(resp)
 	}
 
-	unmarshaler := jsonpb.Unmarshaler{AllowUnknownFields: true}
-	if err = unmarshaler.Unmarshal(resp.Body, out); err != nil {
+	unmarshaler := protojson.UnmarshalOptions{}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return clientError("failed to read response body", err)
+	}
+	if err = unmarshaler.Unmarshal(body, out); err != nil {
 		return clientError("failed to unmarshal json response", err)
 	}
 	if err = ctx.Err(); err != nil {

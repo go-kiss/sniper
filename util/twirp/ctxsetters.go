@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 func WithMethodName(ctx context.Context, name string) context.Context {
