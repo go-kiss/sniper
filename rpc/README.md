@@ -173,6 +173,7 @@ go run cmd/sniper/main.go rpc --server=foo --service=echo
 rpc
 └── foo
     └── v1
+        ├── echo.go
         ├── echo.pb.go
         ├── echo.proto
         └── echo.twirp.go
@@ -181,8 +182,11 @@ rpc
 ## 实现接口
 
 服务接口定义在 rpc 目录对应的 echo.twirp.go 中，是自动生成的。
+
+接口实现代码则会自动生成并保存到 echo.go 中。
+
 ```go
-package user_v0
+package foo_v0
 
 import (
 	// 标准库单列一组
@@ -304,6 +308,3 @@ if err := bookshelf.AddFavorite(ctx, id); err != nil {
 
 我们可以通过 SLB 报警及时发现此类错误并减少业务损失。
 
-## 第三方接口文档链接
-
-请参考 [第三方上传漫画接口文档](https://info.bilibili.co/pages/viewpage.action?pageId=101062966)
