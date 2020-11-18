@@ -592,6 +592,7 @@ func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *prot
 func (t *twirp) generateServerFormMethod(service *protogen.Service, method *protogen.Method) {
 	servStruct := serviceStruct(service)
 	methName := method.GoName
+	servName := service.GoName
 	t.P(`func (s *`, servStruct, `) serve`, methName, `Form(ctx `, t.pkgs["context"], `.Context, resp `, t.pkgs["http"], `.ResponseWriter, req *`, t.pkgs["http"], `.Request) {`)
 	t.P(`  var err error`)
 	t.P(`  ctx = `, t.pkgs["twirp"], `.WithMethodName(ctx, "`, methName, `")`)
@@ -679,7 +680,7 @@ func (t *twirp) generateServerFormMethod(service *protogen.Service, method *prot
 	t.P(`            panic(r)`)
 	t.P(`          }`)
 	t.P(`        }()`)
-	t.P(`        respContent, err = s.`, methName, `(ctx, reqContent)`)
+	t.P(`        respContent, err = s.`, servName, `.`, methName, `(ctx, reqContent)`)
 	t.P(`      }()`)
 	t.P(`  }`)
 	t.P()
