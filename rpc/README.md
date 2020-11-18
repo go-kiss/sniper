@@ -143,6 +143,8 @@ Content-Length: 27
 ## 生成代码
 
 ```bash
+# 首次使用需要安装 protoc-gen-twirp 工具
+make cmd
 # 针对指定服务
 protoc --go_out=. --twirp_out=. echo.proto
 
