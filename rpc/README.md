@@ -157,10 +157,6 @@ make rpc
 
 生成的文件中 `*.pb.go` 是由 protobuf 消息的定义代码，同时支持 protobuf 和 json。`*.twirp.go` 则是 rpc 路由相关代码。
 
-## 实现接口
-
-请参考 [server/README.md](../server/README.md)。
-
 ## 自动注册
 
 sniper 提供的脚手架可以自动生成 proto 模版、server 模版，并注册路由。

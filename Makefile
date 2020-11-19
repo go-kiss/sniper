@@ -38,7 +38,7 @@ LIB_PBGENS := $(LIB_PROTOS:.proto=.pb.go)
 				)\
 			)\
 		))
-	protoc --twirp_out=validate_enable=true,M$m:. \
+	protoc --twirp_out=root_package=sniper,validate_enable=true,M$m:. \
 		--go_out=M$m:. \
 		$<
 

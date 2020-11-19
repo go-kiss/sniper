@@ -80,5 +80,15 @@ var Cmd = &cobra.Command{
 			c.Stderr = os.Stderr
 			c.Run()
 		}
+
+		{
+			sh := fmt.Sprintf(`sed -i '' 's#root_package=sniper#root_package=%s#' Makefile`, rootPkg)
+
+			c := exec.Command("bash")
+			c.Stdin = strings.NewReader(sh)
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			c.Run()
+		}
 	},
 }

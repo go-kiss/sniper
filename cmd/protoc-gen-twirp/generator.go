@@ -44,10 +44,9 @@ const Version = "v0.1.0"
 type twirp struct {
 	// OptionPrefix method_option flag
 	OptionPrefix string
-	// TwirpPackage twirp 运行库包名
-	// 默认为 sniper/util/twirp，用户可以使用 twirp_package 定制
+	// RootPackage 项目包名，默认为 sniper
 	// 如果修改过项目的默认包名(sniper)则一定需要指定
-	TwirpPackage string
+	RootPackage string
 	// 是否开启 validate
 	ValidateEnable bool
 
@@ -200,8 +199,8 @@ func (t *twirp) generateImports(file *protogen.File) {
 	t.P()
 	t.P(`import `, t.pkgs["protojson"], ` "google.golang.org/protobuf/encoding/protojson"`)
 	t.P(`import `, t.pkgs["proto"], ` "google.golang.org/protobuf/proto"`)
-	t.P(`import `, t.pkgs["ctxkit"], ` "sniper/util/ctxkit"`)
-	t.P(`import `, t.pkgs["twirp"], fmt.Sprintf(` "%s"`, t.TwirpPackage))
+	t.P(`import `, t.pkgs["ctxkit"], fmt.Sprintf(` "%s/util/ctxkit"`, t.RootPackage))
+	t.P(`import `, t.pkgs["twirp"], fmt.Sprintf(` "%s/util/twirp"`, t.RootPackage))
 	t.P()
 
 	// It's legal to import a message and use it as an input or output for a
