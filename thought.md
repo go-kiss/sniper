@@ -133,7 +133,7 @@ Sniper 框架的 memcache 和 redis 组件都不支持集群的，而且是有�
 
 为什么呢？我们认为这些细节不应该是一个业务框架要关心的内容。这些内容应该交给统一的中间件处理。业务代码连中间件，根本无需感知集群的存在。对于 memcache，我们生产环境用的是 [twemproxy](https://github.com/twitter/twemproxy)，对于 redis 和 http 服务，我们用的是 [envoy](https://www.envoyproxy.io/)。
 
-我们坚信，未来一定是 service-mesh 的世界，诸如服务发现、负载均衡、限流熔断这一类的功能应该交由 mesh 服务处理。让我们试目以待。
+我们坚信，未来一定是 service-mesh 的世界，诸如服务发现、负载均衡、限流熔断这一类的功能应该交由 mesh 服务处理。让我们拭目以待。
 
 ## 单元测试
 单元测试部分不适合开源，只能分享一些相关的思考。
