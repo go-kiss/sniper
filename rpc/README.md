@@ -105,7 +105,7 @@ message DownloadMsg {
   - protobuf
 
 最新版的[protobuf-gen-twirp](./cmd/protoc-gen-twirp)生成的 `*.twirp.go` 文件已经
-不再硬编码 `/twirp` 前缀。接口前缀可以通过 `RCP_PREFIX` 配置项控制，默认无前缀。
+不再硬编码 `/twirp` 前缀。接口前缀可以通过 `RPC_PREFIX` 配置项控制，默认前缀为 `/api`。
 
 表单请求
 ```
