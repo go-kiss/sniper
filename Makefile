@@ -7,6 +7,8 @@ LIB_PROTOS := $(call rwildcard,util/,*.proto)
 RPC_PBGENS := $(RPC_PROTOS:.proto=.twirp.go)
 LIB_PBGENS := $(LIB_PROTOS:.proto=.pb.go)
 
+UNTRACKED_FILES = $(shell git ls-files --others --exclude-standard)
+
 .PRECIOUS: $(RPC_PBGENS) $(LIB_PBGENS)
 
 # 参数 Mfoo.proto=bar/foo 表示 foo.proto 生成的 go 文件所对应的包名是 bar/foo。
@@ -55,6 +57,10 @@ cmd:
 	go install ./cmd/protoc-gen-twirp
 
 clean:
+ifeq ("$(UNTRACKED_FILES)", "")
 	git clean -x -f -d
+else
+	$(error "⚠️ 您有未追踪的文件，请 git add 或删除这些文件后再试！")
+endif
 
 .PHONY: clean rpc util cmd
