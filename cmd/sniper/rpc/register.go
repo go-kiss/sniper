@@ -84,7 +84,7 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 		if !ok {
 			continue
 		}
-		if se.X.(*dst.Ident).Name != server+"server"+version {
+		if se.X.(*dst.Ident).Name != server+"_v"+version {
 			continue
 		}
 		if se.Sel.Name != upper1st(service)+"Server" {
