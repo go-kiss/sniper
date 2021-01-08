@@ -82,17 +82,18 @@ func (s panicHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		span.Finish()
 	}()
 
-	if r.Method == http.MethodOptions {
-		origin := r.Header.Get("Origin")
-		suffix := conf.Get("CORS_ORIGIN_SUFFIX")
+	origin := r.Header.Get("Origin")
+	suffix := conf.Get("CORS_ORIGIN_SUFFIX")
 
-		if suffix != "" && strings.HasSuffix(origin, suffix) {
-			w.Header().Add("Access-Control-Allow-Origin", origin)
-			w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-			w.Header().Add("Access-Control-Allow-Credentials", "true")
-			w.Header().Add("Access-Control-Allow-Headers", "Origin,No-Cache,X-Requested-With,If-Modified-Since,Pragma,Last-Modified,Cache-Control,Expires,Content-Type,Access-Control-Allow-Credentials,DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Cache-Webcdn,Content-Length")
-			return
-		}
+	if origin != "" && suffix != "" && strings.HasSuffix(origin, suffix) {
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "Origin,No-Cache,X-Requested-With,If-Modified-Since,Pragma,Last-Modified,Cache-Control,Expires,Content-Type,Access-Control-Allow-Credentials,DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Cache-Webcdn,Content-Length")
+	}
+
+	if r.Method == http.MethodOptions {
+		return
 	}
 
 	s.handler.ServeHTTP(w, r)
@@ -153,7 +154,10 @@ func startServer() {
 	if prefix == "" {
 		prefix = "/api"
 	}
-	http.Handle("/", http.StripPrefix(prefix, handler))
+	if prefix != "/" {
+		handler = http.StripPrefix(prefix, handler)
+	}
+	http.Handle("/", handler)
 
 	metricsHandler := promhttp.Handler()
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
