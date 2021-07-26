@@ -23,13 +23,13 @@ LIB_PBGENS := $(LIB_PROTOS:.proto=.pb.go)
 # $(...) 中的神奇代码是为实现以下替换
 # util/kv/taishan/taishan.proto => sniper/util/taishan
 %.pb.go: %.proto
-	protoc --go_out=M$<=$(patsubst %/,sniper/%,$(dir $<)):. $<
+	protoc --go_out=M$<=$(patsubst %/,%,$(dir $<)):. $<
 
 # $(...) 中的神奇代码是为实现以下替换
-# rpc/util/v0/kv.proto => sniper/rpc/util/v0;util_v0
+# rpc/util/v0/kv.proto => rpc/util/v0;util_v0
 %.twirp.go: %.proto
 	$(eval m=$<=$(join \
-			$(patsubst %/,sniper/%\;,\
+			$(patsubst %/,%\;,\
 				$(dir $<)\
 			),\
 			$(subst /v,_v,\
