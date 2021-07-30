@@ -99,7 +99,7 @@ func genRPC() {
 }
 
 func registerServer() {
-	httpFile := fmt.Sprintf("%s/cmd/server/http.go", rootDir)
+	httpFile := fmt.Sprintf("%s/cmd/http/http.go", rootDir)
 	fset := token.NewFileSet()
 	httpAST, err := decorator.ParseFile(fset, httpFile, nil, parser.ParseComments)
 	if err != nil {

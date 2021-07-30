@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"sniper/util/errors"
+	"sniper/pkg/errors"
 
 	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/proto"

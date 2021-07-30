@@ -1,4 +1,4 @@
-package job
+package cron
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"sniper/util"
+	"sniper/pkg"
 
-	"sniper/util/conf"
-	"sniper/util/ctxkit"
-	"sniper/util/log"
-	"sniper/util/metrics"
-	"sniper/util/trace"
+	"sniper/pkg/conf"
+	"sniper/pkg/ctxkit"
+	"sniper/pkg/log"
+	"sniper/pkg/metrics"
+	"sniper/pkg/trace"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -52,8 +52,8 @@ func init() {
 
 // Cmd run job once or periodically
 var Cmd = &cobra.Command{
-	Use:   "job",
-	Short: "Run job",
+	Use:   "cron",
+	Short: "Run cron job",
 	Long: `You can list all jobs and run certain one once.
 If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -151,8 +151,8 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 
 var cmdList = &cobra.Command{
 	Use:   "list",
-	Short: "List all jobs",
-	Long:  `List all jobs.`,
+	Short: "List all cron jobs",
+	Long:  `List all cron jobs.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		for k, v := range jobs {
 			fmt.Printf("%s [%s]\n", k, v.Spec)
@@ -164,8 +164,8 @@ var cmdList = &cobra.Command{
 }
 
 // once 命令参数，可以在 cron 中使用
-// sniper job once foo bar 则 onceArgs = []string{"bar"}
-// sniper job once foo 1 2 3 则 onceArgs = []string{"1", "2", "3"}
+// sniper cron once foo bar 则 onceArgs = []string{"bar"}
+// sniper cron once foo 1 2 3 则 onceArgs = []string{"1", "2", "3"}
 var onceArgs []string
 var onceHttpJob bool
 

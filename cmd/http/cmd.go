@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"github.com/spf13/cobra"
@@ -10,9 +10,9 @@ var isManage bool
 
 // Cmd run http server
 var Cmd = &cobra.Command{
-	Use:   "server",
-	Short: "Run server",
-	Long:  `Run server`,
+	Use:   "http",
+	Short: "Run http server",
+	Long:  `Run http server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		main()
 	},

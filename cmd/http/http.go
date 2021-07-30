@@ -1,11 +1,10 @@
-package server
+package http
 
 import (
 	"net/http"
 
-	"sniper/cmd/server/hook"
-	"sniper/util/twirp"
-
+	"sniper/cmd/http/hook"
+	"sniper/pkg/twirp"
 )
 
 var hooks = twirp.ChainHooks(

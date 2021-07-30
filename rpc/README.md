@@ -190,7 +190,7 @@ import (
 
 	// 框架库单列一组
 	"sniper/dao/login"
-	"sniper/util/conf"
+	"sniper/pkg/conf"
 )
 
 // 服务对象，约定为 Server
@@ -260,7 +260,7 @@ X-Trace-Id: 3kclnknyzmamo
 
 处理代码示例如下：
 ```go
-import "sniper/util/errors"
+import "sniper/pkg/errors"
 // ...
 
 // 这是客户端问题，返回 HTTP 4xx 状态码

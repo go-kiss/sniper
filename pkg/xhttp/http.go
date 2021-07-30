@@ -13,10 +13,10 @@ import (
 	"regexp"
 	"time"
 
-	"sniper/util/errors"
-	"sniper/util/log"
-	"sniper/util/metrics"
-	"sniper/util/trace"
+	"sniper/pkg/errors"
+	"sniper/pkg/log"
+	"sniper/pkg/metrics"
+	"sniper/pkg/trace"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"

@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"sniper/util/conf"
-	"sniper/util/ctxkit"
-	"sniper/util/log"
-	"sniper/util/metrics"
-	"sniper/util/twirp"
+	"sniper/pkg/conf"
+	"sniper/pkg/ctxkit"
+	"sniper/pkg/log"
+	"sniper/pkg/metrics"
+	"sniper/pkg/twirp"
 
 	"github.com/opentracing/opentracing-go"
 )

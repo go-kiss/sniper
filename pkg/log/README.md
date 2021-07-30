@@ -6,7 +6,7 @@ log 会记录上下文信息，所以需要传入一个 ctx 才能获取 log 实
 
 ## 示例
 ```go
-import "sniper/util/log"
+import "sniper/pkg/log"
 
 log.Get(ctx).Errorf("1 + 2 = %d", 1 + 2)
 ```

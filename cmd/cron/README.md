@@ -1,4 +1,4 @@
-# cmd/job
+# cmd/cron
 
 注册定时任务请参考 [demo.go](./demo.go)。
 

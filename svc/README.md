@@ -9,7 +9,7 @@
 框架支持自动打印错误日志，使用方法:
 
 ```go
-import "sniper/util/errors"
+import "sniper/pkg/errors"
 
 // ...
 

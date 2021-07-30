@@ -102,7 +102,7 @@ protoc-gen-markdown 也不完美。它无法正确处理 proto 中的 map 消息
 ## 日志与监控
 日志组件选用 [logrus](https://github.com/sirupsen/logrus)。没别的原因，就是 star 比较多。logrus 支持不同的 formatter，开发环境会将日志写到标准输出设备，其他环境会通过 lancer 写到 elk（这一部分不适合开源）。
 
-框架在处理请求的时候会创建一个 opentracing 的 span。这个 span 是有一个 trace-id 的。框架会把这个 trace-id 注入到 ctx 中。我们希望相关的日志都要带有这个 trace-id，所以需要通过 `sniper/util/log.Get(ctx context.Context)` 方法来获取 logger 实例，使用获取的实例记录日志会自动输出 trace-id。框架在输出响应内容的时候也会自动在 header 中加上这个 trace-id。
+框架在处理请求的时候会创建一个 opentracing 的 span。这个 span 是有一个 trace-id 的。框架会把这个 trace-id 注入到 ctx 中。我们希望相关的日志都要带有这个 trace-id，所以需要通过 `sniper/pkg/log.Get(ctx context.Context)` 方法来获取 logger 实例，使用获取的实例记录日志会自动输出 trace-id。框架在输出响应内容的时候也会自动在 header 中加上这个 trace-id。
 
 公司内部有个叫 dapper 组件，但没有 opentracing sdk。框架自己提供了一个，但这一部分不适合开源。
 

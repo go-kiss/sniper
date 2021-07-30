@@ -1,9 +1,9 @@
 package util
 
 import (
-	_ "sniper/util/conf" // init conf
+	_ "sniper/pkg/conf" // init conf
 
-	"sniper/util/log"
+	"sniper/pkg/log"
 )
 
 // GatherMetrics 收集一些被动指标

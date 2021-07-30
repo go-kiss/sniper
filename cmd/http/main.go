@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"context"
@@ -14,11 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"sniper/util"
-	"sniper/util/conf"
-	"sniper/util/ctxkit"
-	"sniper/util/log"
-	"sniper/util/trace"
+	"sniper/pkg"
+	"sniper/pkg/conf"
+	"sniper/pkg/ctxkit"
+	"sniper/pkg/log"
+	"sniper/pkg/trace"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
