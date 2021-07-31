@@ -112,14 +112,14 @@ func main() {
 	for {
 		select {
 		case <-reload:
-			util.Reset()
+			pkg.Reset()
 		case sg := <-stop:
 			stopServer()
 			// 仿 nginx 使用 HUP 信号重载配置
 			if sg == syscall.SIGHUP {
 				startServer()
 			} else {
-				util.Stop()
+				pkg.Stop()
 				return
 			}
 		}
@@ -161,7 +161,7 @@ func startServer() {
 
 	metricsHandler := promhttp.Handler()
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		util.GatherMetrics()
+		pkg.GatherMetrics()
 
 		metricsHandler.ServeHTTP(w, r)
 	})
@@ -206,5 +206,5 @@ func stopServer() {
 		logger.Fatal(err)
 	}
 
-	util.Reset()
+	pkg.Reset()
 }

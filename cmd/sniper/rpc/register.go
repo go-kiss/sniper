@@ -57,15 +57,7 @@ func appendImportPKGs(file *dst.File) {
 			continue
 		}
 
-		if legacy {
-			importRPCSpec.Decs.Start.Replace("\n")
-		}
-
 		pkg.Specs = append(pkg.Specs, importRPCSpec)
-
-		if legacy {
-			pkg.Specs = append(pkg.Specs, importServerSpec)
-		}
 	}
 }
 
@@ -140,8 +132,4 @@ func genPKGTemplate() {
 		panic(err)
 	}
 	importRPCSpec = importAst.Decls[0].(*dst.GenDecl).Specs[0].(*dst.ImportSpec)
-
-	if legacy {
-		importServerSpec = importAst.Decls[0].(*dst.GenDecl).Specs[1].(*dst.ImportSpec)
-	}
 }

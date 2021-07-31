@@ -24,8 +24,6 @@ var (
 	rootDir, rootPkg, server, service, version string
 
 	twirpFile, serverFile, rpcPkg string
-
-	legacy = false
 )
 
 func init() {
@@ -144,12 +142,7 @@ func registerServer() {
 
 func genImplements() {
 	twirpFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.twirp.go", rootDir, server, version, service)
-	serverFile = fmt.Sprintf("%s/server/%sserver%s/%s.go", rootDir, server, version, service)
-
-	if !legacy {
-		serverFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.go", rootDir, server, version, service)
-		initNewTpl()
-	}
+	serverFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.go", rootDir, server, version, service)
 
 	rpcPkg = fmt.Sprintf("%s/rpc/%s/v%s", rootPkg, server, version)
 

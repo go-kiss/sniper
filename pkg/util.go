@@ -1,4 +1,4 @@
-package util
+package pkg
 
 import (
 	_ "sniper/pkg/conf" // init conf

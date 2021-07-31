@@ -5,17 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	httpd "net/http"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"sniper/pkg"
-
 	"sniper/pkg/conf"
 	"sniper/pkg/ctxkit"
 	"sniper/pkg/log"
@@ -58,16 +56,16 @@ var Cmd = &cobra.Command{
 If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 不指定 handler 则会使用默认 handler
-		server := &httpd.Server{Addr: fmt.Sprintf(":%d", port)}
+		server := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 		go func() {
 			metricsHandler := promhttp.Handler()
-			httpd.HandleFunc("/metrics", func(w httpd.ResponseWriter, r *httpd.Request) {
-				util.GatherMetrics()
+			http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+				pkg.GatherMetrics()
 
 				metricsHandler.ServeHTTP(w, r)
 			})
 
-			httpd.HandleFunc("/ListTasks", func(w httpd.ResponseWriter, r *httpd.Request) {
+			http.HandleFunc("/ListTasks", func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.Background()
 				span, ctx := opentracing.StartSpanFromContext(ctx, "ListTasks")
 				defer span.Finish()
@@ -77,7 +75,7 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 
 				buf, err := json.Marshal(httpJobs)
 				if err != nil {
-					w.WriteHeader(httpd.StatusInternalServerError)
+					w.WriteHeader(http.StatusInternalServerError)
 					w.Write([]byte(err.Error()))
 					return
 				}
@@ -85,7 +83,7 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 				w.Write(buf)
 			})
 
-			httpd.HandleFunc("/RunTask", func(w httpd.ResponseWriter, r *httpd.Request) {
+			http.HandleFunc("/RunTask", func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.Background()
 				span, ctx := opentracing.StartSpanFromContext(ctx, "RunTask")
 				defer span.Finish()
@@ -95,13 +93,13 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 				name := r.FormValue("name")
 				job, ok := httpJobs[name]
 				if !ok {
-					w.WriteHeader(httpd.StatusNotFound)
+					w.WriteHeader(http.StatusNotFound)
 					w.Write([]byte("job " + name + " not found\n"))
 					return
 				}
 
 				if err := job.job(ctx); err != nil {
-					w.WriteHeader(httpd.StatusInternalServerError)
+					w.WriteHeader(http.StatusInternalServerError)
 					w.Write([]byte(fmt.Sprintf("%+v", err)))
 					return
 				}
@@ -109,7 +107,7 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 				w.Write([]byte("run job " + name + " done\n"))
 			})
 
-			httpd.HandleFunc("/monitor/ping", func(w httpd.ResponseWriter, r *httpd.Request) {
+			http.HandleFunc("/monitor/ping", func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte("pong"))
 			})
 
@@ -119,7 +117,7 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 		}()
 
 		go func() {
-			conf.OnConfigChange(func() { util.Reset() })
+			conf.OnConfigChange(func() { pkg.Reset() })
 			conf.WatchConfig()
 
 			c.Run()
@@ -167,7 +165,6 @@ var cmdList = &cobra.Command{
 // sniper cron once foo bar 则 onceArgs = []string{"bar"}
 // sniper cron once foo 1 2 3 则 onceArgs = []string{"1", "2", "3"}
 var onceArgs []string
-var onceHttpJob bool
 
 var cmdOnce = &cobra.Command{
 	Use:   "once job",
@@ -177,12 +174,7 @@ var cmdOnce = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 		onceArgs = args[1:]
-		var job *jobInfo
-		if onceHttpJob {
-			job = httpJobs[name]
-		} else {
-			job = jobs[name]
-		}
+		job := jobs[name]
 		if job != nil {
 			job.job(context.Background())
 		}
@@ -190,38 +182,10 @@ var cmdOnce = &cobra.Command{
 }
 
 func init() {
-	cmdOnce.Flags().BoolVarP(&onceHttpJob, "http", "", false, "运行 http 任务")
 	Cmd.AddCommand(
 		cmdList,
 		cmdOnce,
 	)
-}
-
-// http 注册的任务需要 http 触发
-// spec 采用 unix crontab 语法，不支持秒!!!
-func http(name string, spec string, job func(ctx context.Context) error, args ...string) {
-	if _, ok := httpJobs[name]; ok {
-		panic(name + "is used")
-	}
-
-	if spec == "@manual" {
-		return
-	}
-
-	schedule := "@once" // 只触发一次
-	if strings.HasPrefix(spec, "@") {
-		switch {
-		case strings.Contains(spec, "every"):
-			// TODO scheduler trans
-		default:
-			schedule = spec // @hourly @daily ...
-		}
-	} else {
-		schedule = spec
-	}
-
-	httpJobs[name] = regjob(name, schedule, job, args)
-	return
 }
 
 // sepc 参数请参考 https://godoc.org/github.com/robfig/cron
