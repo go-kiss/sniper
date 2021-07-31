@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	"sniper/pkg/hooks"
+	"sniper/cmd/http/hooks"
 	"sniper/pkg/twirp"
 )
 
