@@ -83,7 +83,7 @@ func updateRPCComment(twirp *ast.GenDecl) {
 					d.Decs.Start.Append(c.Text)
 				}
 			} else if !ok {
-				if d.Recv != nil && d.Name.IsExported() {
+				if d.Recv != nil && d.Name.IsExported() && d.Name.Name != "Hooks" {
 					// 删除 proto 中不存在的方法
 					st, ok := d.Recv.List[0].Type.(*dst.StarExpr)
 					if ok {

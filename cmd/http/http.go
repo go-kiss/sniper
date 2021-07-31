@@ -3,14 +3,11 @@ package http
 import (
 	"net/http"
 
-	"sniper/cmd/http/hook"
+	"sniper/pkg/hooks"
 	"sniper/pkg/twirp"
 )
 
-var hooks = twirp.ChainHooks(
-	hook.NewRequestID(),
-	hook.NewLog(),
-)
+var commonHooks = twirp.ChainHooks(hooks.TraceID, hooks.Log)
 
 func initMux(mux *http.ServeMux) {
 }
