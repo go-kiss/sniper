@@ -52,7 +52,7 @@ pkg: $(PKG_PBGENS)
 	@exit
 
 cmd:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install ./cmd/protoc-gen-twirp
 
 clean:

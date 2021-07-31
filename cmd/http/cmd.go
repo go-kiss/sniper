@@ -5,8 +5,6 @@ import (
 )
 
 var port int
-var isInternal bool
-var isManage bool
 
 // Cmd run http server
 var Cmd = &cobra.Command{
@@ -20,6 +18,4 @@ var Cmd = &cobra.Command{
 
 func init() {
 	Cmd.Flags().IntVar(&port, "port", 8080, "listen port")
-	Cmd.Flags().BoolVar(&isInternal, "internal", false, "internal service")
-	Cmd.Flags().BoolVar(&isManage, "manage", false, "manage service")
 }

@@ -133,22 +133,11 @@ func startServer() {
 
 	mux := http.NewServeMux()
 
-	timeout := 600 * time.Millisecond
-	initMux(mux, isInternal)
+	initMux(mux)
 
-	if isInternal {
-		initInternalMux(mux)
+	var handler http.Handler
 
-		if d := conf.GetDuration("INTERNAL_API_TIMEOUT"); d > 0 {
-			timeout = d
-		}
-	} else {
-		if d := conf.GetDuration("OUTER_API_TIMEOUT"); d > 0 {
-			timeout = d
-		}
-	}
-
-	handler := http.TimeoutHandler(panicHandler{handler: mux}, timeout, "timeout")
+	handler = panicHandler{handler: mux}
 
 	prefix := conf.Get("RPC_PREFIX")
 	if prefix == "" {

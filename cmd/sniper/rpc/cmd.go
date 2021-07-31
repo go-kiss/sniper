@@ -115,10 +115,7 @@ func registerServer() {
 		if !ok {
 			continue
 		}
-		if gen.Name.Name == "initMux" && version == "0" {
-			continue
-		}
-		if gen.Name.Name == "initInternalMux" && version != "0" {
+		if gen.Name.Name != "initMux" {
 			continue
 		}
 
