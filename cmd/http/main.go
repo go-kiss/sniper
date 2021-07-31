@@ -20,7 +20,7 @@ import (
 	"sniper/pkg/log"
 	"sniper/pkg/trace"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -139,13 +139,10 @@ func startServer() {
 
 	handler = panicHandler{handler: mux}
 
-	prefix := conf.Get("RPC_PREFIX")
-	if prefix == "" {
-		prefix = "/api"
-	}
-	if prefix != "/" {
+	if prefix := conf.Get("RPC_PREFIX"); prefix != "" && prefix != "/" {
 		handler = http.StripPrefix(prefix, handler)
 	}
+
 	http.Handle("/", handler)
 
 	metricsHandler := promhttp.Handler()
