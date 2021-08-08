@@ -3,11 +3,10 @@ package trace
 import (
 	"context"
 	"io"
-	"net/http"
 
 	"sniper/pkg/conf"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/log"
@@ -77,35 +76,6 @@ func GetTraceID(ctx context.Context) (traceID string) {
 	traceID = jctx.TraceID().String()
 
 	return
-}
-
-// InjectTrace 注入 OpenTracing 头信息
-func InjectTraceHeader(ctx opentracing.SpanContext, req *http.Request) {
-	opentracing.GlobalTracer().Inject(
-		ctx,
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(req.Header),
-	)
-
-	jctx, ok := ctx.(jaeger.SpanContext)
-	if !ok {
-		return
-	}
-
-	// 兼容主站老的 trace 逻辑
-	req.Header["Bili-Trace-Id"] = req.Header["Uber-Trace-Id"]
-
-	// Envoy 使用 Zipkin 风格头信息
-	// https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/observability/tracing
-	req.Header.Set("x-b3-traceid", jctx.TraceID().String())
-	req.Header.Set("x-b3-spanid", jctx.SpanID().String())
-	req.Header.Set("x-b3-parentspanid", jctx.ParentID().String())
-	if jctx.IsSampled() {
-		req.Header.Set("x-b3-sampled", "1")
-	}
-	if jctx.IsDebug() {
-		req.Header.Set("x-b3-flags", "1")
-	}
 }
 
 // StartFollowSpanFromContext 开起一个 follow 类型 span
