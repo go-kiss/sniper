@@ -119,7 +119,6 @@ func (t *twirp) Generate(plugin *protogen.Plugin) error {
 	t.registerPackageName("fmt")
 	t.registerPackageName("errors")
 	t.registerPackageName("strconv")
-	t.registerPackageName("ctxkit")
 
 	for _, f := range t.plugin.Files {
 		if len(f.Services) == 0 {
@@ -199,7 +198,6 @@ func (t *twirp) generateImports(file *protogen.File) {
 	t.P()
 	t.P(`import `, t.pkgs["protojson"], ` "google.golang.org/protobuf/encoding/protojson"`)
 	t.P(`import `, t.pkgs["proto"], ` "google.golang.org/protobuf/proto"`)
-	t.P(`import `, t.pkgs["ctxkit"], fmt.Sprintf(` "%s/pkg/ctxkit"`, t.RootPackage))
 	t.P(`import `, t.pkgs["twirp"], fmt.Sprintf(` "%s/pkg/twirp"`, t.RootPackage))
 	t.P()
 
@@ -230,7 +228,6 @@ func (t *twirp) generateImports(file *protogen.File) {
 	t.P(`// If the request does not have any number filed, the strconv`)
 	t.P(`// is not needed. However, there is no easy way to drop it.`)
 	t.P(`var _ = `, t.pkgs["strconv"], `.IntSize`)
-	t.P(`var _ = `, t.pkgs["ctxkit"], `.GetUserID`)
 	t.P()
 }
 
@@ -482,10 +479,6 @@ func (t *twirp) generateServerMethod(file *protogen.File, service *protogen.Serv
 	t.generateServerJSONMethod(service, method)
 	t.generateServerProtobufMethod(service, method)
 	t.generateServerFormMethod(service, method)
-}
-
-func (t *twirp) needLogin(method *protogen.Method, service *protogen.Service) bool {
-	return strings.Contains(string(method.Comments.Leading), "@auth\n") || strings.Contains(string(service.Comments.Leading), "@auth\n")
 }
 
 func (t *twirp) generateServerJSONMethod(service *protogen.Service, method *protogen.Method) {
@@ -956,13 +949,5 @@ func (t *twirp) addValidate(method *protogen.Method, service *protogen.Service) 
 		t.P(`    s.writeError(ctx, resp, twirp.InvalidArgumentError("argument", validerr.Error()))`)
 		t.P(`    return`)
 		t.P(`  }`)
-		t.P()
-		if t.needLogin(method, service) {
-			t.P(`  if ctxkit.GetUserID(ctx) == 0 {`)
-			t.P(`    s.writeError(ctx, resp, twirp.NewError(twirp.Unauthenticated, "need login"))`)
-			t.P(`    return`)
-			t.P(`  }`)
-			t.P()
-		}
 	}
 }
