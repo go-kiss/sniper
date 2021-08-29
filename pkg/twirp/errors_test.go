@@ -17,8 +17,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-
-	"github.com/pkg/errors"
 )
 
 func TestWithMetaRaces(t *testing.T) {
@@ -38,14 +36,5 @@ func TestWithMetaRaces(t *testing.T) {
 
 	if len(err.MetaMap()) != 1 {
 		t.Errorf("err was mutated")
-	}
-}
-
-func TestErrorCause(t *testing.T) {
-	rootCause := fmt.Errorf("this is only a test")
-	twerr := InternalErrorWith(rootCause)
-	cause := errors.Cause(twerr)
-	if cause != rootCause {
-		t.Errorf("got wrong cause for err. have=%q, want=%q", cause, rootCause)
 	}
 }

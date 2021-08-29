@@ -86,23 +86,11 @@ var Log = &twirp.ServerHooks{
 		c := twirp.ServerHTTPStatusFromErrorCode(err.Code())
 
 		if c >= 500 {
-			log.Get(ctx).Errorf("%+v", cause(err))
+			log.Get(ctx).Errorf("%+v", err)
 		} else if c >= 400 {
 			log.Get(ctx).Warn(err)
 		}
 
 		return ctx
 	},
-}
-
-func cause(err twirp.Error) error {
-	// https://github.com/pkg/errors#retrieving-the-cause-of-an-error
-	type causer interface {
-		Cause() error
-	}
-	if c, ok := err.(causer); ok {
-		return c.Cause()
-	}
-
-	return err
 }

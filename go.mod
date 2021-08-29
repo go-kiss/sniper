@@ -17,7 +17,6 @@ require (
 	github.com/mattn/go-isatty v0.0.13
 	github.com/ngrok/sqlmw v0.0.0-20210819213940-241da6c2def4
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/robfig/cron v1.2.0
 	github.com/sirupsen/logrus v1.8.1
