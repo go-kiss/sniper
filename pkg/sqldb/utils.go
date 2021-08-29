@@ -10,7 +10,7 @@ import (
 func values(args []driver.NamedValue) []driver.Value {
 	values := make([]driver.Value, 0, len(args))
 	for _, a := range args {
-		values = append(values, a)
+		values = append(values, a.Value)
 	}
 	return values
 }

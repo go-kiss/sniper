@@ -14,8 +14,9 @@ import (
 
 var (
 	sfg singleflight.Group
-	dbs map[string]*sqlx.DB
 	rwl sync.RWMutex
+
+	dbs = map[string]*sqlx.DB{}
 )
 
 type nameKey struct{}
@@ -27,15 +28,16 @@ type nameKey struct{}
 func Get(ctx context.Context, name string) (context.Context, *sqlx.DB) {
 	ctx = context.WithValue(ctx, nameKey{}, name)
 	rwl.RLock()
-	defer rwl.RUnlock()
 	if db, ok := dbs[name]; ok {
+		rwl.RUnlock()
 		return ctx, db
 	}
+	rwl.RUnlock()
 
 	v, _, _ := sfg.Do(name, func() (interface{}, error) {
 		dsn := conf.Get("SQLDB_DSN_" + name)
 		var driver string
-		if strings.HasPrefix(dsn, "file://") {
+		if strings.HasPrefix(dsn, "file:") || dsn == ":memory:" {
 			driver = "db-sqlite"
 		} else {
 			driver = "db-mysql"

@@ -33,7 +33,7 @@ func (observer) ConnExecContext(ctx context.Context,
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 	span.SetTag(string(ext.DBStatement), query)
 
 	s := time.Now()
@@ -61,7 +61,7 @@ func (observer) ConnQueryContext(ctx context.Context,
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 	span.SetTag(string(ext.DBStatement), query)
 
 	s := time.Now()
@@ -89,14 +89,14 @@ func (observer) ConnPrepareContext(ctx context.Context,
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 	span.SetTag(string(ext.DBStatement), query)
 
 	s := time.Now()
 	stmt, err := conn.PrepareContext(ctx, query)
 	d := time.Since(s)
 
-	log.Get(ctx).Debugf("[sqldb] prepare: %s, args:%v, cost: %v",
+	log.Get(ctx).Debugf("[sqldb] prepare: %s, args: %v, cost: %v",
 		query, nil, d)
 
 	table, _ := parseSQL(query)
@@ -117,7 +117,7 @@ func (observer) StmtExecContext(ctx context.Context,
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 	span.SetTag(string(ext.DBStatement), query)
 
 	s := time.Now()
@@ -145,7 +145,7 @@ func (observer) StmtQueryContext(ctx context.Context,
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 	span.SetTag(string(ext.DBStatement), query)
 
 	s := time.Now()
@@ -172,7 +172,7 @@ func (observer) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx,
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 
 	s := time.Now()
 	tx, err := conn.BeginTx(ctx, txOpts)
@@ -194,7 +194,7 @@ func (observer) TxCommit(ctx context.Context, tx driver.Tx) error {
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 
 	s := time.Now()
 	err := tx.Commit()
@@ -216,7 +216,7 @@ func (observer) TxRollback(ctx context.Context, tx driver.Tx) error {
 	defer span.Finish()
 
 	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name)
+	span.SetTag(string(ext.DBInstance), name(ctx))
 
 	s := time.Now()
 	err := tx.Rollback()
