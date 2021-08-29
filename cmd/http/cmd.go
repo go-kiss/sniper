@@ -158,7 +158,7 @@ func startServer() {
 	}
 
 	http.Handle("/", handler)
-	http.HandleFunc("/metrics", promhttp.Handler())
+	http.Handle("/metrics", promhttp.Handler())
 
 	http.HandleFunc("/monitor/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
