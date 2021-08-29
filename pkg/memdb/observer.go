@@ -16,7 +16,6 @@ type observer struct{}
 
 func (observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, cmd.FullName())
-	defer span.Finish()
 
 	ext.Component.Set(span, "memdb")
 	ext.DBInstance.Set(span, name(ctx))
