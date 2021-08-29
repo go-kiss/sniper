@@ -15,7 +15,6 @@ import (
 
 	"sniper/pkg"
 	"sniper/pkg/conf"
-	"sniper/pkg/ctxkit"
 	"sniper/pkg/log"
 	"sniper/pkg/trace"
 
@@ -215,7 +214,6 @@ func regjob(name string, spec string, job func(ctx context.Context) error, tasks
 		defer span.Finish()
 
 		span.SetTag("name", name)
-		ctx = ctxkit.WithTraceID(ctx, trace.GetTraceID(ctx))
 
 		logger := log.Get(ctx)
 

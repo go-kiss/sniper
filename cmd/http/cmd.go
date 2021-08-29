@@ -16,9 +16,7 @@ import (
 
 	"sniper/pkg"
 	"sniper/pkg/conf"
-	"sniper/pkg/ctxkit"
 	"sniper/pkg/log"
-	"sniper/pkg/trace"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -93,7 +91,6 @@ func (s panicHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			ctx := r.Context()
-			ctx = ctxkit.WithTraceID(ctx, trace.GetTraceID(ctx))
 			log.Get(ctx).Error(rec, string(debug.Stack()))
 		}
 		span.Finish()

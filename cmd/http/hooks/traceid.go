@@ -2,9 +2,7 @@ package hooks
 
 import (
 	"context"
-	"time"
 
-	"sniper/pkg/ctxkit"
 	"sniper/pkg/trace"
 	"sniper/pkg/twirp"
 
@@ -13,12 +11,8 @@ import (
 
 var TraceID = &twirp.ServerHooks{
 	RequestReceived: func(ctx context.Context) (context.Context, error) {
-		ctx = context.WithValue(ctx, ctxkit.StartTimeKey, time.Now())
-
 		traceID := trace.GetTraceID(ctx)
 		twirp.SetHTTPResponseHeader(ctx, "x-trace-id", traceID)
-
-		ctx = ctxkit.WithTraceID(ctx, traceID)
 
 		return ctx, nil
 	},
@@ -29,13 +23,12 @@ var TraceID = &twirp.ServerHooks{
 
 		api := "/" + pkg + "." + service + "/" + method
 
-		span, ctx := opentracing.StartSpanFromContext(ctx, api)
-		ctx = context.WithValue(ctx, spanKey, span)
+		_, ctx = opentracing.StartSpanFromContext(ctx, api)
 
 		return ctx, nil
 	},
 	ResponseSent: func(ctx context.Context) {
-		if span, ok := ctx.Value(spanKey).(opentracing.Span); ok {
+		if span := opentracing.SpanFromContext(ctx); span != nil {
 			span.Finish()
 		}
 	},

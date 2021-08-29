@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"sniper/pkg/conf"
-	"sniper/pkg/ctxkit"
+	"sniper/pkg/trace"
 
 	"github.com/k0kubun/pp/v3"
 	"github.com/mattn/go-isatty"
@@ -62,8 +62,7 @@ func Get(ctx context.Context) Logger {
 		"env":         conf.Env,
 		"app_id":      conf.AppID,
 		"instance_id": conf.Hostname,
-		"ip":          ctxkit.GetUserIP(ctx),
-		"trace_id":    ctxkit.GetTraceID(ctx),
+		"trace_id":    trace.GetTraceID(ctx),
 	})
 }
 

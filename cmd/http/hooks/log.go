@@ -2,11 +2,10 @@ package hooks
 
 import (
 	"context"
-	"time"
 
 	"sniper/pkg/conf"
-	"sniper/pkg/ctxkit"
 	"sniper/pkg/log"
+	"sniper/pkg/trace"
 	"sniper/pkg/twirp"
 
 	"github.com/opentracing/opentracing-go"
@@ -18,19 +17,7 @@ type bizResponse interface {
 }
 
 var Log = &twirp.ServerHooks{
-	ResponsePrepared: func(ctx context.Context) context.Context {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "SendResp")
-		ctx = context.WithValue(ctx, sendRespKey, span)
-		return ctx
-	},
 	ResponseSent: func(ctx context.Context) {
-		if span, ok := ctx.Value(sendRespKey).(opentracing.Span); ok {
-			defer span.Finish()
-		}
-
-		span, ctx := opentracing.StartSpanFromContext(ctx, "LogReq")
-		defer span.Finish()
-
 		var bizCode int32
 		var bizMsg string
 		resp, _ := twirp.Response(ctx)
@@ -39,8 +26,8 @@ var Log = &twirp.ServerHooks{
 			bizMsg = br.GetMsg()
 		}
 
-		start := ctx.Value(ctxkit.StartTimeKey).(time.Time)
-		duration := time.Since(start)
+		span := opentracing.SpanFromContext(ctx)
+		duration := trace.GetDuration(span)
 
 		status, _ := twirp.StatusCode(ctx)
 		if _, ok := ctx.Deadline(); ok {
@@ -74,6 +61,7 @@ var Log = &twirp.ServerHooks{
 		}
 
 		log.Get(ctx).WithFields(log.Fields{
+			"ip":       hreq.RemoteAddr,
 			"path":     path,
 			"status":   status,
 			"params":   form.Encode(),
