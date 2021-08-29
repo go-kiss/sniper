@@ -7,7 +7,6 @@ import (
 	"sniper/pkg/conf"
 	"sniper/pkg/ctxkit"
 	"sniper/pkg/log"
-	"sniper/pkg/metrics"
 	"sniper/pkg/twirp"
 
 	"github.com/opentracing/opentracing-go"
@@ -56,7 +55,7 @@ var Log = &twirp.ServerHooks{
 		// 外部爬接口脚本会请求任意 API
 		// 导致 prometheus 无法展示数据
 		if status != "404" {
-			metrics.RPCDurationsSeconds.WithLabelValues(
+			rpcDurations.WithLabelValues(
 				path,
 				status,
 			).Observe(duration.Seconds())

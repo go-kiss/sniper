@@ -17,7 +17,6 @@ import (
 	"sniper/pkg/conf"
 	"sniper/pkg/ctxkit"
 	"sniper/pkg/log"
-	"sniper/pkg/metrics"
 	"sniper/pkg/trace"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -232,15 +231,12 @@ func regjob(name string, spec string, job func(ctx context.Context) error, tasks
 			return
 		}
 
-		code := "0"
 		t := time.Now()
 		if err = job(ctx); err != nil {
 			logger.Errorf("cron job error: %+v", err)
 			code = "1"
 		}
 		d := time.Since(t)
-
-		metrics.JobTotal.WithLabelValues(code).Inc()
 
 		logger.WithField("cost", d.Seconds()).Infof("cron job %s[%s]", name, spec)
 		return

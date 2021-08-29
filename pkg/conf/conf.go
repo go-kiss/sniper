@@ -73,7 +73,6 @@ func init() {
 		logger().WithField("path", path).Info("use default conf path")
 	}
 
-
 	fs, err := ioutil.ReadDir(path)
 	if err != nil {
 		panic(err)

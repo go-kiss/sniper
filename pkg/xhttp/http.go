@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"sniper/pkg/log"
-	"sniper/pkg/metrics"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -85,7 +84,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// /v123/4/56/foo => /v123/%d/%d/foo
 	url = digitsRE.ReplaceAllString(url, "%d")
 
-	metrics.HTTPDurationsSeconds.WithLabelValues(
+	httpDurations.WithLabelValues(
 		url,
 		fmt.Sprint(status),
 	).Observe(duration.Seconds())
