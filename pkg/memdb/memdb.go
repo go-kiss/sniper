@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -40,6 +41,9 @@ func Get(ctx context.Context, name string) (context.Context, *redis.Client) {
 		db := redis.NewClient(opts)
 
 		db.AddHook(observer{})
+
+		collector := NewStatsCollector(name, db)
+		prometheus.MustRegister(collector)
 
 		rwl.Lock()
 		defer rwl.Unlock()

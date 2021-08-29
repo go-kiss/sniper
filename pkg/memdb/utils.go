@@ -62,6 +62,7 @@ func setOptions(opts *redis.Options, dsn string) {
 		opts.Password = p
 	}
 }
+
 func name(ctx context.Context) string {
 	v, _ := ctx.Value(nameKey{}).(string)
 	if v == "" {

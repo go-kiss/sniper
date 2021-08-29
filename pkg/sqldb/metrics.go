@@ -12,7 +12,7 @@ var sqlDurations = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 	Name:      "sql_durations_seconds",
 	Help:      "sql latency distributions",
 	Buckets:   defBuckets,
-}, []string{"name", "table", "cmd"})
+}, []string{"db_name", "table", "cmd"})
 
 func init() {
 	prometheus.MustRegister(sqlDurations)

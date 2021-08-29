@@ -11,6 +11,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 )
 
+// 观察所有 redis 命令执行情况
 type observer struct{}
 
 func (observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {

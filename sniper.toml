@@ -2,5 +2,7 @@
 LOG_LEVEL = "debug"
 # rpc 接口路径前缀
 RPC_PREFIX = "/api"
-# sqlite 数据配置
+# sqlite 配置
 SQLDB_DSN_FOO = "file:memory:"
+# redis 配置
+MEMDB_DSN_BAR = "redis://localhost:6379"
