@@ -232,7 +232,6 @@ func regjob(name string, spec string, job func(ctx context.Context) error, tasks
 		t := time.Now()
 		if err = job(ctx); err != nil {
 			logger.Errorf("cron job error: %+v", err)
-			code = "1"
 		}
 		d := time.Since(t)
 
