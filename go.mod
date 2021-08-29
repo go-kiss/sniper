@@ -8,6 +8,8 @@ require (
 	github.com/dave/dst v0.25.5
 	github.com/dlmiddlecote/sqlstats v1.0.2
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/go-redis/redis/extra/rediscmd/v8 v8.11.3
+	github.com/go-redis/redis/v8 v8.11.3
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jarcoal/httpmock v1.0.3
 	github.com/jmoiron/sqlx v1.3.4

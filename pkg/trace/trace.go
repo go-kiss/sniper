@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"io"
+	"time"
 
 	"sniper/pkg/conf"
 
@@ -76,6 +77,16 @@ func GetTraceID(ctx context.Context) (traceID string) {
 	traceID = jctx.TraceID().String()
 
 	return
+}
+
+// GetDuration 查询当前 span 耗时
+func GetDuration(span opentracing.Span) time.Duration {
+	jspan, ok := span.(*jaeger.Span)
+	if !ok {
+		return 0
+	}
+
+	return jspan.Duration()
 }
 
 // StartFollowSpanFromContext 开起一个 follow 类型 span
