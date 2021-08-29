@@ -41,10 +41,10 @@ func init() {
 		logger().Warn("env APP_ID is empty")
 	}
 
-	if env := os.Getenv("DEPLOY_ENV"); env != "" {
+	if env := os.Getenv("ENV"); env != "" {
 		Env = env
 	} else {
-		logger().Warn("env DEPLOY_ENV is empty")
+		logger().Warn("env ENV is empty")
 	}
 
 	if zone := os.Getenv("ZONE"); zone != "" {
@@ -121,9 +121,7 @@ func (c *Conf) GetStrings(key string) (s []string) {
 		return
 	}
 
-	for _, v := range strings.Split(value, ",") {
-		s = append(s, v)
-	}
+	s = append(s, strings.Split(value, ",")...)
 	return
 }
 
@@ -249,8 +247,8 @@ func logger() *logrus.Entry {
 	}
 
 	return logrus.WithFields(logrus.Fields{
-		"app_id":      AppID,
-		"instance_id": Hostname,
-		"env":         Env,
+		"app_id":   AppID,
+		"hostname": Hostname,
+		"env":      Env,
 	})
 }

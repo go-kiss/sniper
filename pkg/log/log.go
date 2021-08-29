@@ -59,10 +59,10 @@ func setLevel() {
 // Get 获取日志实例
 func Get(ctx context.Context) Logger {
 	return logrus.WithFields(logrus.Fields{
-		"env":         conf.Env,
-		"app_id":      conf.AppID,
-		"instance_id": conf.Hostname,
-		"trace_id":    trace.GetTraceID(ctx),
+		"env":      conf.Env,
+		"app_id":   conf.AppID,
+		"hostname": conf.Hostname,
+		"trace_id": trace.GetTraceID(ctx),
 	})
 }
 
