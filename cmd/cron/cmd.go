@@ -56,12 +56,7 @@ If you run job cmd WITHOUT any sub cmd, job will be sheduled like cron.`,
 		// 不指定 handler 则会使用默认 handler
 		server := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 		go func() {
-			metricsHandler := promhttp.Handler()
-			http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-				pkg.GatherMetrics()
-
-				metricsHandler.ServeHTTP(w, r)
-			})
+			http.HandleFunc("/metrics", promhttp.Handler())
 
 			http.HandleFunc("/ListTasks", func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.Background()

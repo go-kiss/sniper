@@ -158,13 +158,7 @@ func startServer() {
 	}
 
 	http.Handle("/", handler)
-
-	metricsHandler := promhttp.Handler()
-	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		pkg.GatherMetrics()
-
-		metricsHandler.ServeHTTP(w, r)
-	})
+	http.HandleFunc("/metrics", promhttp.Handler())
 
 	http.HandleFunc("/monitor/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
