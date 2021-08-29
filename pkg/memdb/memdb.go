@@ -19,10 +19,10 @@ var (
 
 type nameKey struct{}
 
-// Get 获取数据库实例
+// Get 获取缓存实例
 //
-// ctx, db := sqldb.Get(ctx, "foo")
-// db.ExecContext(ctx, "select ...")
+// ctx, db := Get(ctx, "foo")
+// db.Set(ctx, "a", "123", 0)
 func Get(ctx context.Context, name string) (context.Context, *redis.Client) {
 	ctx = context.WithValue(ctx, nameKey{}, name)
 	rwl.RLock()
