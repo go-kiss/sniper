@@ -27,7 +27,7 @@
 ## 快速入门
 
 - [定义接口](./rpc/README.md)
-- [实现接口](./server/README.md)
+- [实现接口](./rpc/README.md)
 - [注册服务](./cmd/server/README.md)
 - [启动服务](./cmd/server/README.md)
 - [配置文件](./util/conf/README.md)
