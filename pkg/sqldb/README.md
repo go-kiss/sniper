@@ -40,6 +40,46 @@ ctx, db := sqldb.Get(ctx, "name")
 db.ExecContext(ctx, "delete from ...")
 ```
 
+## ORM
+
+sqldb 提供简单的 Insert/Update/StructScan 方法，替换常用的 ORM 使用场景。
+
+所有的 Model 都必须实现 Modler 接口，支持查询所属的表名和主键字段名。
+
+比如我们定义一个 user 对象：
+
+```go
+type user struct {
+	ID      int
+	Name    string
+	Age     int
+	Created time.Time
+}
+func (u *user) TableName() string { return "users" }
+func (u *user) KeyName() string   { return "id" }
+```
+
+保存对象：
+
+```go
+u := {Name:"foo", Age:18, Created:time.Now()}
+result, err := db.Insert(ctx, &u)
+```
+
+更新对象：
+
+```go
+u.Name = "bar"
+result, err := db.Update(ctx, &u)
+```
+
+查询对象：
+
+```go
+var u2 user
+db.GetContext(ctx, &u2, "select * from users where id = ?", id)
+```
+
 ## 现有问题
 
 受限于 database/sql 驱动的设计，我们无法在提交或者回滚事务的时候确定总耗时。

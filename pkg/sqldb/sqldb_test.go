@@ -8,7 +8,7 @@ import (
 )
 
 var schema = `
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id integer primary key,
   age integer,
   name varchar(30),
@@ -22,6 +22,9 @@ type user struct {
 	Age     int
 	Created time.Time
 }
+
+func (u *user) TableName() string { return "users" }
+func (u *user) KeyName() string   { return "id" }
 
 func TestSqlDb(t *testing.T) {
 	conf.Set("SQLDB_DSN_foo", ":memory:")
@@ -63,6 +66,41 @@ func TestSqlDb(t *testing.T) {
 	}
 
 	if u2.ID != 1 || u2.Name != "a" || u2.Age != 1 || u2.Created.IsZero() {
+		t.Fatal("invalid user", u2)
+	}
+}
+
+func TestModel(t *testing.T) {
+	conf.Set("SQLDB_DSN_foo", ":memory:")
+	ctx := context.Background()
+
+	ctx, db := Get(ctx, "foo")
+	db.MustExecContext(ctx, schema)
+
+	now := time.Now()
+	u1 := &user{Name: "foo", Age: 18, Created: now}
+	result, err := db.Insert(u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, _ := result.LastInsertId()
+
+	u1.Name = "bar"
+	u1.ID = int(id)
+
+	_, err = db.Update(u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var u2 user
+	err = db.Get(&u2, "select * from users where id = ?", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if u2.Name != "bar" || u2.Age != 18 || !u2.Created.Equal(now) {
 		t.Fatal("invalid user", u2)
 	}
 }

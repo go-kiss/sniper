@@ -16,16 +16,26 @@ var (
 	sfg singleflight.Group
 	rwl sync.RWMutex
 
-	dbs = map[string]*sqlx.DB{}
+	dbs = map[string]*DB{}
 )
 
 type nameKey struct{}
+
+// DB 扩展 sqlx.DB
+type DB struct {
+	*sqlx.DB
+}
+
+// Tx 扩展 sqlx.Tx
+type Tx struct {
+	*sqlx.Tx
+}
 
 // Get 获取数据库实例
 //
 // ctx, db := sqldb.Get(ctx, "foo")
 // db.ExecContext(ctx, "select ...")
-func Get(ctx context.Context, name string) (context.Context, *sqlx.DB) {
+func Get(ctx context.Context, name string) (context.Context, *DB) {
 	ctx = context.WithValue(ctx, nameKey{}, name)
 	rwl.RLock()
 	if db, ok := dbs[name]; ok {
@@ -43,7 +53,9 @@ func Get(ctx context.Context, name string) (context.Context, *sqlx.DB) {
 			driver = "db-mysql"
 		}
 
-		db := sqlx.MustOpen(driver, dsn)
+		sdb := sqlx.MustOpen(driver, dsn)
+
+		db := &DB{sdb}
 
 		rwl.Lock()
 		defer rwl.Unlock()
@@ -55,5 +67,5 @@ func Get(ctx context.Context, name string) (context.Context, *sqlx.DB) {
 		return db, nil
 	})
 
-	return ctx, v.(*sqlx.DB)
+	return ctx, v.(*DB)
 }
