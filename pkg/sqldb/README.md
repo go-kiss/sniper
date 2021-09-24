@@ -63,21 +63,21 @@ func (u *user) KeyName() string   { return "id" }
 
 ```go
 u := {Name:"foo", Age:18, Created:time.Now()}
-result, err := db.Insert(ctx, &u)
+result, err := db.Insert(&u)
 ```
 
 更新对象：
 
 ```go
 u.Name = "bar"
-result, err := db.Update(ctx, &u)
+result, err := db.Update(&u)
 ```
 
 查询对象：
 
 ```go
 var u2 user
-db.GetContext(ctx, &u2, "select * from users where id = ?", id)
+err := db.Get(&u2, "select * from users where id = ?", id)
 ```
 
 ## 现有问题
