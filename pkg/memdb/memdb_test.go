@@ -10,7 +10,7 @@ func TestMemDb(t *testing.T) {
 	conf.Set("MEMDB_DSN_foo", "redis://localhost:6379/")
 
 	ctx := context.Background()
-	ctx, db := Get(ctx, "foo")
+	db := Get("foo")
 
 	s := db.Set(ctx, "a", "123", 0)
 	if err := s.Err(); err != nil {

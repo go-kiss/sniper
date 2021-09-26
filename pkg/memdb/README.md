@@ -33,6 +33,6 @@ MEMDB_DSN_BAR = "redis://name:password@localhost:6379?DB=1"
 返回的是`*redis.Client`对象。
 
 ```go
-ctx, db := Get(ctx, "foo")
+db := Get("foo")
 db.Set(ctx, "a", "123", 0)
 ```

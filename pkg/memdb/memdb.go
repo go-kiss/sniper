@@ -1,9 +1,9 @@
 package memdb
 
 import (
-	"context"
-	"sniper/pkg/conf"
 	"sync"
+
+	"sniper/pkg/conf"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,14 +21,13 @@ type nameKey struct{}
 
 // Get 获取缓存实例
 //
-// ctx, db := Get(ctx, "foo")
+// db := Get("foo")
 // db.Set(ctx, "a", "123", 0)
-func Get(ctx context.Context, name string) (context.Context, *redis.Client) {
-	ctx = context.WithValue(ctx, nameKey{}, name)
+func Get(name string) *redis.Client {
 	rwl.RLock()
 	if db, ok := dbs[name]; ok {
 		rwl.RUnlock()
-		return ctx, db
+		return db
 	}
 	rwl.RUnlock()
 
@@ -40,7 +39,7 @@ func Get(ctx context.Context, name string) (context.Context, *redis.Client) {
 
 		db := redis.NewClient(opts)
 
-		db.AddHook(observer{})
+		db.AddHook(&observer{name: name})
 
 		collector := NewStatsCollector(name, db)
 		prometheus.MustRegister(collector)
@@ -52,5 +51,5 @@ func Get(ctx context.Context, name string) (context.Context, *redis.Client) {
 		return db, nil
 	})
 
-	return ctx, v.(*redis.Client)
+	return v.(*redis.Client)
 }

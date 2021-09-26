@@ -12,19 +12,21 @@ import (
 )
 
 // 观察所有 redis 命令执行情况
-type observer struct{}
+type observer struct {
+	name string
+}
 
-func (observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
+func (o *observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, cmd.FullName())
 
 	ext.Component.Set(span, "memdb")
-	ext.DBInstance.Set(span, name(ctx))
+	ext.DBInstance.Set(span, o.name)
 	ext.DBStatement.Set(span, rediscmd.CmdString(cmd))
 
 	return ctx, nil
 }
 
-func (observer) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
+func (o *observer) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	span := opentracing.SpanFromContext(ctx)
 	if err := cmd.Err(); err != nil && err != redis.Nil {
 		ext.Error.Set(span, true)
@@ -36,17 +38,17 @@ func (observer) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	log.Get(ctx).Debugf("[memdb] %s, cost:%v", rediscmd.CmdString(cmd), d)
 
 	redisDurations.WithLabelValues(
-		name(ctx),
+		o.name,
 		cmd.FullName(),
 	).Observe(d.Seconds())
 
 	return nil
 }
 
-func (observer) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
+func (o *observer) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
 	return ctx, nil
 }
 
-func (observer) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
+func (o *observer) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
 	return nil
 }
