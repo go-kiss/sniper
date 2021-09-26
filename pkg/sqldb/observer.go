@@ -32,9 +32,9 @@ func (observer) ConnExecContext(ctx context.Context,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Exec")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
-	span.SetTag(string(ext.DBStatement), query)
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
+	ext.DBStatement.Set(span, query)
 
 	s := time.Now()
 	result, err := conn.ExecContext(ctx, query, args)
@@ -60,9 +60,9 @@ func (observer) ConnQueryContext(ctx context.Context,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Query")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
-	span.SetTag(string(ext.DBStatement), query)
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
+	ext.DBStatement.Set(span, query)
 
 	s := time.Now()
 	rows, err := conn.QueryContext(ctx, query, args)
@@ -88,9 +88,9 @@ func (observer) ConnPrepareContext(ctx context.Context,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Prepare")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
-	span.SetTag(string(ext.DBStatement), query)
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
+	ext.DBStatement.Set(span, query)
 
 	s := time.Now()
 	stmt, err := conn.PrepareContext(ctx, query)
@@ -116,9 +116,9 @@ func (observer) StmtExecContext(ctx context.Context,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PreparedExec")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
-	span.SetTag(string(ext.DBStatement), query)
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
+	ext.DBStatement.Set(span, query)
 
 	s := time.Now()
 	result, err := stmt.ExecContext(ctx, args)
@@ -144,9 +144,9 @@ func (observer) StmtQueryContext(ctx context.Context,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PreparedQuery")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
-	span.SetTag(string(ext.DBStatement), query)
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
+	ext.DBStatement.Set(span, query)
 
 	s := time.Now()
 	rows, err := stmt.QueryContext(ctx, args)
@@ -171,8 +171,8 @@ func (observer) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Begin")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
 
 	s := time.Now()
 	tx, err := conn.BeginTx(ctx, txOpts)
@@ -193,8 +193,8 @@ func (observer) TxCommit(ctx context.Context, tx driver.Tx) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Commit")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
 
 	s := time.Now()
 	err := tx.Commit()
@@ -215,8 +215,8 @@ func (observer) TxRollback(ctx context.Context, tx driver.Tx) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Rollback")
 	defer span.Finish()
 
-	span.SetTag(string(ext.Component), "sqldb")
-	span.SetTag(string(ext.DBInstance), name(ctx))
+	ext.Component.Set(span, "sqldb")
+	ext.DBInstance.Set(span, name(ctx))
 
 	s := time.Now()
 	err := tx.Rollback()
