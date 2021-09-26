@@ -20,7 +20,7 @@ func init() {
 }
 
 type StatsCollector struct {
-	db *redis.Client
+	db redis.UniversalClient
 
 	// descriptions of exported metrics
 	hitDesc     *prometheus.Desc
@@ -37,7 +37,7 @@ const (
 )
 
 // NewStatsCollector creates a new StatsCollector.
-func NewStatsCollector(dbName string, db *redis.Client) *StatsCollector {
+func NewStatsCollector(dbName string, db redis.UniversalClient) *StatsCollector {
 	labels := prometheus.Labels{"db_name": dbName}
 	return &StatsCollector{
 		db: db,

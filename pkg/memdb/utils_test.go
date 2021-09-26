@@ -10,7 +10,7 @@ import (
 )
 
 func TestSetOptions(t *testing.T) {
-	opts := redis.Options{}
+	opts := redis.UniversalOptions{}
 	dsn := "redis://foo:bar@localhost:6379/?DB=1&" +
 		"&Network=tcp" +
 		"&MaxRetries=1" +

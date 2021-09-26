@@ -11,7 +11,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func setOptions(opts *redis.Options, dsn string) {
+func setOptions(opts *redis.UniversalOptions, dsn string) {
 	url, err := url.Parse(dsn)
 	if err != nil {
 		panic(err)
@@ -56,7 +56,7 @@ func setOptions(opts *redis.Options, dsn string) {
 		}
 	}
 
-	opts.Addr = url.Host
+	opts.Addrs = []string{url.Host}
 	opts.Username = url.User.Username()
 	if p, ok := url.User.Password(); ok {
 		opts.Password = p

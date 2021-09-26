@@ -14,16 +14,21 @@ var (
 	sfg singleflight.Group
 	rwl sync.RWMutex
 
-	dbs = map[string]*redis.Client{}
+	dbs = map[string]*Client{}
 )
 
 type nameKey struct{}
+
+// Client redis 客户端
+type Client struct {
+	redis.UniversalClient
+}
 
 // Get 获取缓存实例
 //
 // db := Get("foo")
 // db.Set(ctx, "a", "123", 0)
-func Get(name string) *redis.Client {
+func Get(name string) *Client {
 	rwl.RLock()
 	if db, ok := dbs[name]; ok {
 		rwl.RUnlock()
@@ -32,17 +37,19 @@ func Get(name string) *redis.Client {
 	rwl.RUnlock()
 
 	v, _, _ := sfg.Do(name, func() (interface{}, error) {
-		opts := &redis.Options{}
+		opts := &redis.UniversalOptions{}
 
 		dsn := conf.Get("MEMDB_DSN_" + name)
 		setOptions(opts, dsn)
 
-		db := redis.NewClient(opts)
+		rdb := redis.NewUniversalClient(opts)
 
-		db.AddHook(&observer{name: name})
+		rdb.AddHook(&observer{name: name})
 
-		collector := NewStatsCollector(name, db)
+		collector := NewStatsCollector(name, rdb)
 		prometheus.MustRegister(collector)
+
+		db := &Client{rdb}
 
 		rwl.Lock()
 		defer rwl.Unlock()
@@ -51,5 +58,5 @@ func Get(name string) *redis.Client {
 		return db, nil
 	})
 
-	return v.(*redis.Client)
+	return v.(*Client)
 }
