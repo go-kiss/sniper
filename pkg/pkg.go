@@ -1,8 +1,8 @@
 package pkg
 
 import (
-	_ "sniper/pkg/conf"  // init conf
-	_ "sniper/pkg/xhttp" // init http
+	_ "sniper/pkg/conf" // init conf
+	_ "sniper/pkg/http" // init http
 
 	"sniper/pkg/log"
 )

@@ -16,7 +16,7 @@
 //   	Timeout: 1 * time.Second,
 //   }
 //   resp, err := c.Do(req)
-package xhttp
+package http
 
 import (
 	"fmt"
