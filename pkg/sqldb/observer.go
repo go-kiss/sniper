@@ -5,8 +5,7 @@ import (
 	"database/sql/driver"
 	"time"
 
-	"sniper/pkg/log"
-
+	"github.com/go-kiss/sniper/pkg/log"
 	"github.com/ngrok/sqlmw"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"

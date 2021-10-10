@@ -2,9 +2,9 @@ package memdb
 
 import (
 	"context"
-	"sniper/pkg/log"
-	"sniper/pkg/trace"
 
+	"github.com/go-kiss/sniper/pkg/log"
+	"github.com/go-kiss/sniper/pkg/trace"
 	"github.com/go-redis/redis/extra/rediscmd/v8"
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"

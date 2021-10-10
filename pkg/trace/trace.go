@@ -5,8 +5,7 @@ import (
 	"io"
 	"time"
 
-	"sniper/pkg/conf"
-
+	"github.com/go-kiss/sniper/pkg/conf"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"

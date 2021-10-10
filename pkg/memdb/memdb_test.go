@@ -2,8 +2,9 @@ package memdb
 
 import (
 	"context"
-	"sniper/pkg/conf"
 	"testing"
+
+	"github.com/go-kiss/sniper/pkg/conf"
 )
 
 func TestMemDb(t *testing.T) {

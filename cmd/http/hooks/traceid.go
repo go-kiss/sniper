@@ -3,9 +3,8 @@ package hooks
 import (
 	"context"
 
-	"sniper/pkg/trace"
-	"sniper/pkg/twirp"
-
+	"github.com/go-kiss/sniper/pkg/trace"
+	"github.com/go-kiss/sniper/pkg/twirp"
 	"github.com/opentracing/opentracing-go"
 )
 

@@ -13,12 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"sniper/pkg"
-	"sniper/pkg/conf"
-	"sniper/pkg/log"
-	"sniper/pkg/trace"
-
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/go-kiss/sniper/pkg"
+	"github.com/go-kiss/sniper/pkg/conf"
+	"github.com/go-kiss/sniper/pkg/log"
+	"github.com/go-kiss/sniper/pkg/trace"
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	crond "github.com/robfig/cron"
 	"github.com/spf13/cobra"

@@ -5,9 +5,8 @@ import (
 	"context"
 	"os"
 
-	"sniper/pkg/conf"
-	"sniper/pkg/trace"
-
+	"github.com/go-kiss/sniper/pkg/conf"
+	"github.com/go-kiss/sniper/pkg/trace"
 	"github.com/k0kubun/pp/v3"
 	"github.com/mattn/go-isatty"
 	"github.com/sirupsen/logrus"

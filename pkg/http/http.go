@@ -24,8 +24,7 @@ import (
 	"regexp"
 	"time"
 
-	"sniper/pkg/log"
-
+	"github.com/go-kiss/sniper/pkg/log"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 )

@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"sniper/pkg/conf"
 	"strings"
 	"sync"
 
+	"github.com/go-kiss/sniper/pkg/conf"
 	"github.com/dlmiddlecote/sqlstats"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"

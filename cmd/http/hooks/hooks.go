@@ -3,7 +3,7 @@ package hooks
 import (
 	"context"
 
-	"sniper/pkg/twirp"
+	"github.com/go-kiss/sniper/pkg/twirp"
 )
 
 type ServerHooker interface {

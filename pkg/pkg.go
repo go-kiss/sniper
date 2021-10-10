@@ -1,10 +1,10 @@
 package pkg
 
 import (
-	_ "sniper/pkg/conf" // init conf
-	_ "sniper/pkg/http" // init http
+	_ "github.com/go-kiss/sniper/pkg/conf" // init conf
+	_ "github.com/go-kiss/sniper/pkg/http" // init http
 
-	"sniper/pkg/log"
+	"github.com/go-kiss/sniper/pkg/log"
 )
 
 // Reset all utils

@@ -14,10 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"sniper/pkg"
-	"sniper/pkg/conf"
-	"sniper/pkg/log"
-
+	"github.com/go-kiss/sniper/pkg"
+	"github.com/go-kiss/sniper/pkg/conf"
+	"github.com/go-kiss/sniper/pkg/log"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

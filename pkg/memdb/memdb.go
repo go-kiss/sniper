@@ -3,8 +3,7 @@ package memdb
 import (
 	"sync"
 
-	"sniper/pkg/conf"
-
+	"github.com/go-kiss/sniper/pkg/conf"
 	"github.com/go-redis/redis/v8"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/singleflight"
