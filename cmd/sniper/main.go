@@ -1,14 +1,16 @@
 package main
 
 import (
-	"github.com/go-kiss/sniper/cmd/rename"
-	"github.com/go-kiss/sniper/cmd/rpc"
+	start "github.com/go-kiss/sniper/cmd/sniper/init"
+	"github.com/go-kiss/sniper/cmd/sniper/rename"
+	"github.com/go-kiss/sniper/cmd/sniper/rpc"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	Cmd.AddCommand(rpc.Cmd)
 	Cmd.AddCommand(rename.Cmd)
+	Cmd.AddCommand(start.Cmd)
 }
 
 // Cmd 脚手架命令
