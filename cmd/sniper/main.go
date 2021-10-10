@@ -1,9 +1,8 @@
 package main
 
 import (
-	"sniper/cmd/sniper/rename"
-	"sniper/cmd/sniper/rpc"
-
+	"github.com/go-kiss/sniper/cmd/rename"
+	"github.com/go-kiss/sniper/cmd/rpc"
 	"github.com/spf13/cobra"
 )
 

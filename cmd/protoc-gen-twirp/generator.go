@@ -30,9 +30,8 @@ import (
 	"strings"
 	"text/template"
 
-	"sniper/cmd/protoc-gen-twirp/templates"
-	"sniper/cmd/protoc-gen-twirp/templates/rule"
-
+	"github.com/go-kiss/sniper/cmd/protoc-gen-twirp/templates"
+	"github.com/go-kiss/sniper/cmd/protoc-gen-twirp/templates/rule"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
