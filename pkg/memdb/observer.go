@@ -16,7 +16,7 @@ type observer struct {
 	name string
 }
 
-func (o *observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
+func (o observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, cmd.FullName())
 
 	ext.Component.Set(span, "memdb")
@@ -26,7 +26,7 @@ func (o *observer) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.
 	return ctx, nil
 }
 
-func (o *observer) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
+func (o observer) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	span := opentracing.SpanFromContext(ctx)
 	if err := cmd.Err(); err != nil && err != redis.Nil {
 		ext.Error.Set(span, true)
@@ -45,10 +45,10 @@ func (o *observer) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	return nil
 }
 
-func (o *observer) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
+func (o observer) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
 	return ctx, nil
 }
 
-func (o *observer) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
+func (o observer) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
 	return nil
 }

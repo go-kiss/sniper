@@ -44,7 +44,7 @@ func Get(name string) *Client {
 
 		rdb := redis.NewUniversalClient(opts)
 
-		rdb.AddHook(&observer{name: name})
+		rdb.AddHook(observer{name: name})
 
 		collector := NewStatsCollector(name, rdb)
 		prometheus.MustRegister(collector)
