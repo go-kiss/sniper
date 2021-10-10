@@ -3,7 +3,7 @@ package mock
 import (
 	"reflect"
 
-	"bou.ke/monkey"
+	"github.com/go-kiss/monkey"
 )
 
 func Patch(target, replacement interface{}) *monkey.PatchGuard {

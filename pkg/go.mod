@@ -5,9 +5,9 @@ go 1.17
 replace sniper/pkg => ./
 
 require (
-	bou.ke/monkey v1.0.2
 	github.com/dlmiddlecote/sqlstats v1.0.2
 	github.com/fsnotify/fsnotify v1.5.1
+	github.com/go-kiss/monkey v0.0.0-20210912230757-40cda447d0e3
 	github.com/go-redis/redis/extra/rediscmd/v8 v8.11.4
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-sql-driver/mysql v1.6.0
@@ -36,6 +36,7 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/huandu/go-tls v1.0.1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -55,6 +56,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
+	golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b // indirect
 	golang.org/x/text v0.3.6 // indirect
