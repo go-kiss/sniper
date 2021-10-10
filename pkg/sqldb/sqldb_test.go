@@ -30,7 +30,7 @@ func TestSqlDb(t *testing.T) {
 	conf.Set("SQLDB_DSN_foo", ":memory:")
 	ctx := context.Background()
 
-	ctx, db := Get(ctx, "foo")
+	db := Get(ctx, "foo")
 	db.MustExecContext(ctx, schema)
 
 	result, err := db.ExecContext(ctx,
@@ -74,7 +74,7 @@ func TestModel(t *testing.T) {
 	conf.Set("SQLDB_DSN_foo", ":memory:")
 	ctx := context.Background()
 
-	ctx, db := Get(ctx, "foo")
+	db := Get(ctx, "foo")
 	db.MustExecContext(ctx, schema)
 
 	now := time.Now()
@@ -102,5 +102,37 @@ func TestModel(t *testing.T) {
 
 	if u2.Name != "bar" || u2.Age != 18 || !u2.Created.Equal(now) {
 		t.Fatal("invalid user", u2)
+	}
+}
+
+func TestName(t *testing.T) {
+	conf.Set("SQLDB_DSN_bar", ":memory:")
+	conf.Set("SQLDB_DSN_baz", ":memory:")
+	ctx := context.Background()
+
+	db1 := Get(ctx, "bar")
+	db1.MustExecContext(ctx, schema)
+	db2 := Get(ctx, "baz")
+	db2.MustExecContext(ctx, schema)
+
+	now := time.Now()
+	u1 := &user{Name: "foo", Age: 18, Created: now}
+
+	result1, err := db1.Insert(u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id1, _ := result1.LastInsertId()
+
+	result2, err := db2.Insert(u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id2, _ := result2.LastInsertId()
+
+	if id1 != id2 {
+		t.Fatal("invalid id", id1, id2)
 	}
 }

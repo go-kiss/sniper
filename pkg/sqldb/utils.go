@@ -1,7 +1,6 @@
 package sqldb
 
 import (
-	"context"
 	"database/sql/driver"
 	"regexp"
 	"strings"
@@ -13,14 +12,6 @@ func values(args []driver.NamedValue) []driver.Value {
 		values = append(values, a.Value)
 	}
 	return values
-}
-
-func name(ctx context.Context) string {
-	v, _ := ctx.Value(nameKey{}).(string)
-	if v == "" {
-		v = "unknown"
-	}
-	return v
 }
 
 var sqlreg = regexp.MustCompile(`(?i)` +

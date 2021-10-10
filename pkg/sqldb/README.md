@@ -36,7 +36,7 @@ SQLDB_DSN_mysql1 = "username:password@protocol(address)/dbname?param=value"
 框架会根据配置内容自动识别数据库驱动。
 
 ```go
-ctx, db := sqldb.Get(ctx, "name")
+db := sqldb.Get(ctx, "name")
 db.ExecContext(ctx, "delete from ...")
 ```
 
@@ -86,29 +86,17 @@ err := db.Get(&u2, "select * from users where id = ?", id)
 
 目前只能监控 begin/commit/rollback 单个查询耗时，而非事务总耗时。
 
+database/sql 不支持添加 hooks，而使用 sql.Regster 只能进行全局注册。为了实现
+不同数据库实例注册不同 hooks 的效果（主要用于保存数据库配置名字），我们为每个
+数据库配置分别注册 sql.Driver 实例。
+
 
 ## 添加新驱动
 
-如果想添加 sqlite 和 mysql 之外的数据库驱动（比如 postgres），需要做两件事。
-
-首先是注册驱动，此部分代码需要添加到 observer.go 的`init()`函数：
-
-```go
-sql.Register("db-pg", sqlmw.Driver(pg.Driver{}, observer{}))
-```
-
-第一个参数是驱动的名字，可以随便取，但不能跟已经注册的冲突。建议添加`pb-`前缀。
-
-然后就是根据配置内容指定驱动名字，这部分代码需要添加到 sqldb.go 的`Get()`函数：
+如果想添加 sqlite 和 mysql 之外的数据库驱动（比如 postgres），需要初始化
+driverName 和 driver 两个变量。driverName 中应该包含数据库配置名（实例名）。
 
 ```go
-dsn := conf.Get("SQLDB_DSN_" + name)
-var driver string
-if strings.HasPrefix(dsn, "file://") {
-	driver = "db-sqlite"
-} else if strings.HasPrefix(dsn, "postgres://") {
-	driver = "db-pq" // 这里需要跟注册的名字保持一致
-} else {
-	driver = "db-mysql"
-}
+driverName = "db-sqlite:" + name
+driver = sqlmw.Driver(&sqlite.Driver{}, observer{name: name})
 ```

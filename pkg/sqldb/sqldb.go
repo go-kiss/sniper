@@ -2,14 +2,19 @@ package sqldb
 
 import (
 	"context"
+	"database/sql"
+	"database/sql/driver"
 	"sniper/pkg/conf"
 	"strings"
 	"sync"
 
 	"github.com/dlmiddlecote/sqlstats"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/singleflight"
+	"modernc.org/sqlite"
 )
 
 var (
@@ -33,27 +38,31 @@ type Tx struct {
 
 // Get 获取数据库实例
 //
-// ctx, db := sqldb.Get(ctx, "foo")
+// db := sqldb.Get(ctx, "foo")
 // db.ExecContext(ctx, "select ...")
-func Get(ctx context.Context, name string) (context.Context, *DB) {
-	ctx = context.WithValue(ctx, nameKey{}, name)
+func Get(ctx context.Context, name string) *DB {
 	rwl.RLock()
 	if db, ok := dbs[name]; ok {
 		rwl.RUnlock()
-		return ctx, db
+		return db
 	}
 	rwl.RUnlock()
 
 	v, _, _ := sfg.Do(name, func() (interface{}, error) {
 		dsn := conf.Get("SQLDB_DSN_" + name)
-		var driver string
-		if strings.HasPrefix(dsn, "file:") || dsn == ":memory:" {
-			driver = "db-sqlite"
+		isSqlite := strings.HasPrefix(dsn, "file:") || dsn == ":memory:"
+		var driverName string
+		var driver driver.Driver
+		if isSqlite {
+			driverName = "db-sqlite:" + name
+			driver = sqlmw.Driver(&sqlite.Driver{}, observer{name: name})
 		} else {
-			driver = "db-mysql"
+			driverName = "db-mysql:" + name
+			driver = sqlmw.Driver(mysql.MySQLDriver{}, observer{name: name})
 		}
 
-		sdb := sqlx.MustOpen(driver, dsn)
+		sql.Register(driverName, driver)
+		sdb := sqlx.MustOpen(driverName, dsn)
 
 		db := &DB{sdb}
 
@@ -67,5 +76,5 @@ func Get(ctx context.Context, name string) (context.Context, *DB) {
 		return db, nil
 	})
 
-	return ctx, v.(*DB)
+	return v.(*DB)
 }
