@@ -38,9 +38,7 @@ PKG_PBGENS := $(PKG_PROTOS:.proto=.pb.go)
 				)\
 			)\
 		))
-	protoc --twirp_out=root_package=github.com/go-kiss/sniper,validate_enable=true,M$m:. \
-		--go_out=M$m:. \
-		$<
+	protoc --twirp_out=M$m:. --go_out=M$m:. $<
 
 default: rpc pkg
 	go build -trimpath -mod=readonly

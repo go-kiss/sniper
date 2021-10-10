@@ -16,26 +16,32 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"google.golang.org/protobuf/compiler/protogen"
 )
 
 func main() {
 	versionFlag := flag.Bool("version", false, "print version and exit")
+	helpFlag := flag.Bool("help", false, "print help and exit")
 	flag.Parse()
 	if *versionFlag {
 		fmt.Println(Version)
-		os.Exit(0)
+		return
 	}
 
 	g := newGenerator()
 
 	var flags flag.FlagSet
 
-	flags.StringVar(&g.OptionPrefix, "option_prefix", "sniper", "")
-	flags.StringVar(&g.RootPackage, "root_package", "sniper", "")
-	flags.BoolVar(&g.ValidateEnable, "validate_enable", false, "")
+	flags.StringVar(&g.OptionPrefix, "option_prefix", "sniper", "legacy option prefix")
+	flags.StringVar(&g.RootPackage, "root_package", "github.com/go-kiss/sniper", "root package of pkg")
+	flags.BoolVar(&g.ValidateEnable, "validate_enable", false, "generate *.validate.go")
+
+	if *helpFlag {
+		fmt.Println("protoc-gen-twirp " + Version)
+		flags.PrintDefaults()
+		return
+	}
 
 	protogen.Options{
 		ParamFunc: flags.Set,
