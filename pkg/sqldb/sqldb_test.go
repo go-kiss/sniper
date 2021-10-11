@@ -2,9 +2,10 @@ package sqldb
 
 import (
 	"context"
-	"sniper/pkg/conf"
 	"testing"
 	"time"
+
+	"github.com/go-kiss/sniper/pkg/conf"
 )
 
 var schema = `
