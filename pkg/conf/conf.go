@@ -31,6 +31,8 @@ var (
 	Env = "dev"
 	// Zone 服务区域
 	Zone = "sh001"
+	// confName 默认配置文章名
+	confName = "sniper"
 )
 
 func init() {
@@ -51,6 +53,10 @@ func init() {
 		Zone = zone
 	} else {
 		logger().Warn("env ZONE is empty")
+	}
+
+	if name := os.Getenv("CONF_NAME"); name != "" {
+		confName = name
 	}
 
 	switch Env {
@@ -102,19 +108,19 @@ type Conf struct {
 }
 
 // GetFloat64 获取浮点数配置
-func GetFloat64(key string) float64 { return File("sniper").GetFloat64(key) }
+func GetFloat64(key string) float64 { return File(confName).GetFloat64(key) }
 func (c *Conf) GetFloat64(key string) float64 {
 	return c.viper.GetFloat64(key)
 }
 
 // Get 获取字符串配置
-func Get(key string) string { return File("sniper").Get(key) }
+func Get(key string) string { return File(confName).Get(key) }
 func (c *Conf) Get(key string) string {
 	return c.viper.GetString(key)
 }
 
 // GetStrings 获取字符串列表
-func GetStrings(key string) (s []string) { return File("sniper").GetStrings(key) }
+func GetStrings(key string) (s []string) { return File(confName).GetStrings(key) }
 func (c *Conf) GetStrings(key string) (s []string) {
 	value := Get(key)
 	if value == "" {
@@ -127,7 +133,7 @@ func (c *Conf) GetStrings(key string) (s []string) {
 
 // GetInt32s 获取数字列表
 // 1,2,3 => []int32{1,2,3}
-func GetInt32s(key string) (s []int32, err error) { return File("sniper").GetInt32s(key) }
+func GetInt32s(key string) (s []int32, err error) { return File(confName).GetInt32s(key) }
 func (c *Conf) GetInt32s(key string) (s []int32, err error) {
 	s64, err := GetInt64s(key)
 	for _, v := range s64 {
@@ -137,7 +143,7 @@ func (c *Conf) GetInt32s(key string) (s []int32, err error) {
 }
 
 // GetInt64s 获取数字列表
-func GetInt64s(key string) (s []int64, err error) { return File("sniper").GetInt64s(key) }
+func GetInt64s(key string) (s []int64, err error) { return File(confName).GetInt64s(key) }
 func (c *Conf) GetInt64s(key string) (s []int64, err error) {
 	value := Get(key)
 	if value == "" {
@@ -156,25 +162,25 @@ func (c *Conf) GetInt64s(key string) (s []int64, err error) {
 }
 
 // GetInt 获取整数配置
-func GetInt(key string) int { return File("sniper").GetInt(key) }
+func GetInt(key string) int { return File(confName).GetInt(key) }
 func (c *Conf) GetInt(key string) int {
 	return c.viper.GetInt(key)
 }
 
 // GetInt32 获取 int32 配置
-func GetInt32(key string) int32 { return File("sniper").GetInt32(key) }
+func GetInt32(key string) int32 { return File(confName).GetInt32(key) }
 func (c *Conf) GetInt32(key string) int32 {
 	return c.viper.GetInt32(key)
 }
 
 // GetInt64 获取 int64 配置
-func GetInt64(key string) int64 { return File("sniper").GetInt64(key) }
+func GetInt64(key string) int64 { return File(confName).GetInt64(key) }
 func (c *Conf) GetInt64(key string) int64 {
 	return c.viper.GetInt64(key)
 }
 
 // GetDuration 获取时间配置
-func GetDuration(key string) time.Duration { return File("sniper").GetDuration(key) }
+func GetDuration(key string) time.Duration { return File(confName).GetDuration(key) }
 func (c *Conf) GetDuration(key string) time.Duration {
 	return c.viper.GetDuration(key)
 }
@@ -185,7 +191,7 @@ func (c *Conf) GetDuration(key string) time.Duration {
 //
 // 配置不存在或时间格式错误返回**空时间对象**
 // 使用本地时区
-func GetTime(key string, args ...string) time.Time { return File("sniper").GetTime(key, args...) }
+func GetTime(key string, args ...string) time.Time { return File(confName).GetTime(key, args...) }
 func (c *Conf) GetTime(key string, args ...string) time.Time {
 	fmt := "2006-01-02 15:04:05"
 	if len(args) == 1 {
@@ -197,13 +203,13 @@ func (c *Conf) GetTime(key string, args ...string) time.Time {
 }
 
 // GetBool 获取配置布尔配置
-func GetBool(key string) bool { return File("sniper").GetBool(key) }
+func GetBool(key string) bool { return File(confName).GetBool(key) }
 func (c *Conf) GetBool(key string) bool {
 	return c.viper.GetBool(key)
 }
 
 // Set 设置配置，仅用于测试
-func Set(key string, value string) { File("sniper").Set(key, value) }
+func Set(key string, value string) { File(confName).Set(key, value) }
 func (c *Conf) Set(key string, value string) {
 	c.viper.Set(key, value)
 }
