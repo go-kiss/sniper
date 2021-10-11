@@ -6,7 +6,7 @@ package {{.Server}}_v{{.Version}}
 import (
 	"context"
 
-	"sniper/pkg/twirp"
+	"github.com/go-kiss/sniper/pkg/twirp"
 )
 
 type {{.Service}}Server struct{}

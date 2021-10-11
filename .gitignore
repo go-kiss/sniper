@@ -1,9 +1,8 @@
-.idea
-sniper
-coverage.out
 *.DS_Store
-*.twirp.go
-*.pb.go
-*.validate.go
-vendor
+/.idea
+/coverage.out
+/sniper
 rpc/**/*.md
+rpc/**/*.pb.go
+rpc/**/*.twirp.go
+rpc/**/*.validate.go

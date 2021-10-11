@@ -49,11 +49,7 @@ rpc: $(RPC_PBGENS)
 pkg: $(PKG_PBGENS)
 	@exit
 
-cmd:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install ./cmd/protoc-gen-twirp
-
 clean:
 	git clean -x -f -d
 
-.PHONY: clean rpc pkg cmd
+.PHONY: clean rpc pkg
