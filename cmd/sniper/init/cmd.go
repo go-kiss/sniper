@@ -12,7 +12,7 @@ import (
 var pkg, branch string
 
 func init() {
-	Cmd.Flags().StringVar(&pkg, "pkg", "", "项目包名")
+	Cmd.Flags().StringVar(&pkg, "pkg", "sniper", "项目包名")
 	Cmd.Flags().StringVar(&branch, "branch", "", "项目远程分支名")
 
 	Cmd.MarkFlagRequired("pkg")
@@ -48,6 +48,7 @@ https://github.com/go-kiss/sniper
 			color.Red("protoc is not found")
 			fail = true
 		}
+
 		if fail {
 			os.Exit(110)
 		}
@@ -55,11 +56,8 @@ https://github.com/go-kiss/sniper
 		run("go", "install", "google.golang.org/protobuf/cmd/protoc-gen-go@latest")
 		// run("go", "install", "github.com/go-kiss/sniper/cmd/protoc-gen-twirp@latest")
 
-		path := "sniper"
-		if pkg != "" {
-			parts := strings.Split(pkg, "/")
-			path = parts[len(parts)-1]
-		}
+		parts := strings.Split(pkg, "/")
+		path := parts[len(parts)-1]
 		run("git", "clone", "https://github.com/go-kiss/sniper.git",
 			"--quiet", "--depth=1", "--branch="+branch, path)
 
@@ -67,7 +65,7 @@ https://github.com/go-kiss/sniper
 			panic(err)
 		}
 
-		if pkg == "" {
+		if pkg == "sniper" {
 			return
 		}
 

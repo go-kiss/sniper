@@ -1,6 +1,7 @@
 package rpc
 
-var serverTpl = `
+const (
+	serverTpl = `
 package {{.Server}}_v{{.Version}}
 
 import (
@@ -21,20 +22,20 @@ func (s *{{.Service}}Server) Hooks() map[string]*twirp.ServerHooks {
 }
 `
 
-var funcTpl = `
+	funcTpl = `
 func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *{{.ReqType}}) (resp *{{.RespType}}, err error) {
 	// FIXME 请开始你的表演
 	return
 }
 `
 
-var echoFuncTpl = `
+	echoFuncTpl = `
 func (s *{{.Service}}Server) Echo(ctx context.Context, req *{{.Service}}EchoReq) (resp *{{.Service}}EchoResp, err error) {
 	return &{{.Service}}EchoResp{Msg: req.Msg}, nil
 }
 `
 
-var regServerTpl = `
+	regServerTpl = `
 package main
 func main() {
 	{
@@ -46,9 +47,32 @@ func main() {
 }
 `
 
-var importTpl = `
+	importTpl = `
 package main
 import(
 	{{.PKGName}} {{.RPCPath}}
 )
 `
+
+	protoTpl = `
+syntax = "proto3";
+
+package {{.Server}}.v{{.Version}};
+
+// FIXME 服务必须写注释
+service {{.Service}} {
+    // FIXME 接口必须写注释
+    rpc Echo({{.Service}}EchoReq) returns ({{.Service}}EchoResp);
+}
+
+message {{.Service}}EchoReq {
+    // FIXME 请求字段必须写注释
+    string msg = 1;
+}
+
+message {{.Service}}EchoResp {
+    // FIXME 响应字段必须写注释
+    string msg = 1;
+}
+`
+)

@@ -66,7 +66,9 @@ var Cmd = &cobra.Command{
 	Short: "生成 rpc 接口",
 	Long: `脚手架功能：
 - 生成 rpc/**/*.proto 模版
-- 生成 server/**/*.go 代码
+- 生成 rpc/**/*.go
+- 生成 rpc/**/*.pb.go
+- 生成 rpc/**/*.twirp.go
 - 注册接口到 http server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if service == "" {
