@@ -13,25 +13,21 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/modfile"
 )
 
 var (
-	rootDir, rootPkg, server, service, version string
+	rootPkg, server, service, version string
 
 	twirpFile, serverFile, rpcPkg string
 )
 
 func init() {
-	wd, _ := os.Getwd()
-	module := getModuleName()
-
-	Cmd.Flags().StringVar(&rootDir, "root", wd, "项目根目录")
-	Cmd.Flags().StringVar(&rootPkg, "package", module, "项目总包名")
-	Cmd.Flags().StringVar(&server, "server", "", "服务包名")
-	Cmd.Flags().StringVar(&service, "service", "", "子服务名")
-	Cmd.Flags().StringVar(&version, "version", "1", "服务版本")
+	Cmd.Flags().StringVar(&server, "server", "", "服务")
+	Cmd.Flags().StringVar(&service, "service", "", "子服务")
+	Cmd.Flags().StringVar(&version, "version", "1", "版本")
 
 	Cmd.MarkFlagRequired("server")
 }
@@ -61,9 +57,15 @@ var Cmd = &cobra.Command{
 - 生成 rpc/**/*.twirp.go
 - 注册接口到 http server`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if isSniperDir() {
+			color.Red("sniper rpc 只能在 sniper 项目根目录运行!")
+			os.Exit(1)
+		}
+
 		if service == "" {
 			service = server
 		}
+		rootPkg = getModuleName()
 
 		genRPC()
 		genImplements()
@@ -71,16 +73,33 @@ var Cmd = &cobra.Command{
 	},
 }
 
+func isSniperDir() bool {
+	dirs, err := os.ReadDir(".")
+	if err != nil {
+		panic(err)
+	}
+
+	// 检查 sniper 项目目录结构
+	// sniper 项目依赖 cmd/pkg/rpc 三个目录
+	sniperDirs := map[string]bool{"cmd": true, "pkg": true, "rpc": true}
+
+	c := 0
+	for _, d := range dirs {
+		if sniperDirs[d.Name()] {
+			c++
+		}
+	}
+
+	return c != len(sniperDirs)
+}
+
 func genRPC() {
 	proto := fmt.Sprintf("rpc/%s/v%s/%s.proto", server, version, service)
-	protoFile := fmt.Sprintf("%s/%s", rootDir, proto)
-
-	if !fileExists(protoFile) {
-		genProto(protoFile)
+	if !fileExists(proto) {
+		genProto(proto)
 	}
 
 	cmd := exec.Command("make", "rpc")
-	cmd.Dir = rootDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -89,7 +108,7 @@ func genRPC() {
 }
 
 func registerServer() {
-	httpFile := fmt.Sprintf("%s/cmd/http/http.go", rootDir)
+	httpFile := "cmd/http/http.go"
 	fset := token.NewFileSet()
 	httpAST, err := decorator.ParseFile(fset, httpFile, nil, parser.ParseComments)
 	if err != nil {
@@ -130,8 +149,8 @@ func registerServer() {
 }
 
 func genImplements() {
-	twirpFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.twirp.go", rootDir, server, version, service)
-	serverFile = fmt.Sprintf("%s/rpc/%s/v%s/%s.go", rootDir, server, version, service)
+	twirpFile = fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
+	serverFile = fmt.Sprintf("rpc/%s/v%s/%s.go", server, version, service)
 
 	rpcPkg = fmt.Sprintf("%s/rpc/%s/v%s", rootPkg, server, version)
 
