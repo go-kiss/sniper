@@ -7,32 +7,40 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
-	"strings"
 	"text/template"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 )
 
-func genOrUpdateTwirpServer() {
+func genOrUpdateServer() {
 	if !fileExists(serverFile) {
-		genServerFile()
+		tpl := &srvTpl{
+			Server:  server,
+			Version: version,
+			Service: upper1st(service),
+		}
+
+		save(serverFile, tpl)
 	}
 
-	twirp, _ := parseAST(twirpFile)
-	for _, decl := range twirp.Decls {
-		if tree, ok := decl.(*ast.GenDecl); ok && tree.Tok == token.TYPE {
-			appendFuncs(tree)
-			updateRPCComment(tree)
-
-			break // 只处理一个文件
+	p := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
+	f, _ := parseAST(p)
+	for _, d := range f.Decls {
+		gd, ok := d.(*ast.GenDecl)
+		if !ok || gd.Tok != token.TYPE {
+			continue
 		}
+
+		appendFuncs(gd)
+		updateComments(gd)
+
+		return // 只处理第一个服务
 	}
 }
 
-func updateRPCComment(twirp *ast.GenDecl) {
-	comments := getRPCComments(twirp)
+func updateComments(d *ast.GenDecl) {
+	comments := getComments(d)
 
 	fset := token.NewFileSet()
 	f, err := decorator.ParseFile(fset, serverFile, nil, parser.ParseComments)
@@ -108,13 +116,14 @@ func updateRPCComment(twirp *ast.GenDecl) {
 	decorator.Fprint(fb, f)
 }
 
-func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) {
-	comments = make(map[string]*ast.CommentGroup)
+func getComments(d *ast.GenDecl) map[string]*ast.CommentGroup {
+	comments := make(map[string]*ast.CommentGroup)
 	// rpc service注释单独添加
-	if twirp.Doc != nil {
-		comments[upper1st(service)] = twirp.Doc
+	if d.Doc != nil {
+		comments[upper1st(service)] = d.Doc
 	}
-	for _, s := range twirp.Specs {
+
+	for _, s := range d.Specs {
 		ts, ok := s.(*ast.TypeSpec)
 		if !ok {
 			continue
@@ -127,7 +136,8 @@ func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) 
 
 		for _, method := range it.Methods.List {
 			name := method.Names[0].Name
-			if name == "Do" || name == "ServiceDescriptor" || name == "ProtocGenTwirpVersion" {
+			if name == "Do" || name == "ServiceDescriptor" ||
+				name == "ProtocGenTwirpVersion" {
 				continue
 			}
 
@@ -135,15 +145,15 @@ func getRPCComments(twirp *ast.GenDecl) (comments map[string]*ast.CommentGroup) 
 		}
 	}
 
-	return
+	return comments
 }
 
-func appendFuncs(twirp *ast.GenDecl) {
+func appendFuncs(d *ast.GenDecl) {
 	buf := &bytes.Buffer{}
 
 	definedFuncs := scanDefinedFuncs(serverFile)
 
-	for _, s := range twirp.Specs {
+	for _, s := range d.Specs {
 		ts, ok := s.(*ast.TypeSpec)
 		if !ok {
 			continue
@@ -154,10 +164,10 @@ func appendFuncs(twirp *ast.GenDecl) {
 			continue
 		}
 
-		for _, method := range it.Methods.List {
-			name := method.Names[0].Name
-
-			if name == "Do" || name == "ServiceDescriptor" || name == "ProtocGenTwirpVersion" {
+		for _, m := range it.Methods.List {
+			name := m.Names[0].Name
+			if name == "Do" || name == "ServiceDescriptor" ||
+				name == "ProtocGenTwirpVersion" {
 				continue
 			}
 
@@ -165,7 +175,7 @@ func appendFuncs(twirp *ast.GenDecl) {
 				continue
 			}
 
-			appendFunc(buf, method)
+			appendFunc(buf, m)
 		}
 	}
 
@@ -186,18 +196,12 @@ func appendFuncs(twirp *ast.GenDecl) {
 	}
 }
 
-func appendFunc(buf *bytes.Buffer, method *ast.Field) {
-	args := struct {
-		Name     string
-		ReqType  string
-		RespType string
-		Service  string
-	}{}
+func appendFunc(buf *bytes.Buffer, f *ast.Field) {
+	args := &funcTpl{}
 
-	args.Name = method.Names[0].Name
+	args.Name = f.Names[0].Name
 
-	ft := method.Type.(*ast.FuncType)
-	// FIXME 写死函数签名
+	ft := f.Type.(*ast.FuncType)
 	// 如果使用导入的 message 作为入参或出参，生成的代码会有语法错误！
 	// 但处理这类情况比较复杂，这类用法也比较少，先不处理。
 	// 先尽量使用自定义消息吧。
@@ -205,33 +209,26 @@ func appendFunc(buf *bytes.Buffer, method *ast.Field) {
 	args.RespType = ft.Results.List[0].Type.(*ast.StarExpr).X.(*ast.Ident).Name
 	args.Service = upper1st(service)
 
-	tpl := funcTpl
-	if args.Name == "Echo" {
-		tpl = echoFuncTpl
-	}
-
-	tmpl, err := template.New("server").Parse(tpl)
+	t, err := template.New("server").Parse(args.tpl())
 	if err != nil {
 		panic(err)
 	}
 
-	err = tmpl.Execute(buf, args)
-	if err != nil {
+	if err := t.Execute(buf, args); err != nil {
 		panic(err)
 	}
-
 }
 
 func scanDefinedFuncs(file string) map[string]bool {
-	parseServer, _ := parseAST(file)
-	definedFuncs := make(map[string]bool)
-	for _, decl := range parseServer.Decls {
-		if fundel, ok := decl.(*ast.FuncDecl); ok {
-			definedFuncs[fundel.Name.Name] = true
+	r, _ := parseAST(file)
+	fs := make(map[string]bool)
+	for _, decl := range r.Decls {
+		if f, ok := decl.(*ast.FuncDecl); ok {
+			fs[f.Name.Name] = true
 		}
 	}
 
-	return definedFuncs
+	return fs
 }
 
 // 判断文件是否存在
@@ -243,30 +240,4 @@ func fileExists(file string) bool {
 		return false
 	}
 	return true
-}
-
-func genServerFile() {
-	serverPkg := filepath.Base(filepath.Dir(serverFile))
-
-	args := struct {
-		Server    string
-		Version   string
-		RPCPkg    string
-		ServerPkg string
-		Service   string
-	}{server, version, rpcPkg, serverPkg, upper1st(service)}
-
-	buf := &bytes.Buffer{}
-
-	tmpl, err := template.New("test").Parse(strings.TrimLeft(serverTpl, "\n"))
-	if err != nil {
-		panic(err)
-	}
-
-	err = tmpl.Execute(buf, args)
-	if err != nil {
-		panic(err)
-	}
-
-	save(serverFile, buf.Bytes())
 }

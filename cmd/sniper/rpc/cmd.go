@@ -1,8 +1,7 @@
 package rpc
 
-// 几乎所有代码由欧阳完成，我只是搬运过来。
-
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -10,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"text/template"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	rootPkg, server, service, version string
+	server, service, version string
 
-	twirpFile, serverFile, rpcPkg string
+	serverFile string
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	Cmd.MarkFlagRequired("server")
 }
 
-func getModuleName() string {
+func module() string {
 	b, err := os.ReadFile("go.mod")
 	if err != nil {
 		panic(err)
@@ -58,17 +58,18 @@ var Cmd = &cobra.Command{
 - 注册接口到 http server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if isSniperDir() {
-			color.Red("sniper rpc 只能在 sniper 项目根目录运行!")
+			color.Red("只能在 sniper 项目根目录运行!")
 			os.Exit(1)
 		}
 
 		if service == "" {
 			service = server
 		}
-		rootPkg = getModuleName()
 
-		genRPC()
-		genImplements()
+		serverFile = fmt.Sprintf("rpc/%s/v%s/%s.go", server, version, service)
+
+		genProto()
+		genOrUpdateServer()
 		registerServer()
 	},
 }
@@ -93,10 +94,16 @@ func isSniperDir() bool {
 	return c != len(sniperDirs)
 }
 
-func genRPC() {
-	proto := fmt.Sprintf("rpc/%s/v%s/%s.proto", server, version, service)
-	if !fileExists(proto) {
-		genProto(proto)
+func genProto() {
+	path := fmt.Sprintf("rpc/%s/v%s/%s.proto", server, version, service)
+	if !fileExists(path) {
+		tpl := &protoTpl{
+			Server:  server,
+			Version: version,
+			Service: upper1st(service),
+		}
+
+		save(path, tpl)
 	}
 
 	cmd := exec.Command("make", "rpc")
@@ -112,31 +119,17 @@ func registerServer() {
 	fset := token.NewFileSet()
 	httpAST, err := decorator.ParseFile(fset, httpFile, nil, parser.ParseComments)
 	if err != nil {
-		return
+		panic(err)
 	}
 
-	// 检查 import 包
-	if !serverImported(httpAST.Imports) {
-		genPKGTemplate()
-		appendImportPKGs(httpAST)
-	}
+	genImport(httpAST)
 
 	// 处理注册路由
 	for _, decl := range httpAST.Decls {
-		gen, ok := decl.(*dst.FuncDecl)
-		if !ok {
-			continue
+		f, ok := decl.(*dst.FuncDecl)
+		if ok && f.Name.Name == "initMux" {
+			genServerRoute(f)
 		}
-		if gen.Name.Name != "initMux" {
-			continue
-		}
-
-		if serverRegistered(gen) {
-			return
-		}
-
-		genServerTemplate()
-		appendServer(gen)
 	}
 
 	f, err := os.OpenFile(httpFile, os.O_WRONLY|os.O_CREATE, 0766)
@@ -149,26 +142,24 @@ func registerServer() {
 	}
 }
 
-func genImplements() {
-	twirpFile = fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
-	serverFile = fmt.Sprintf("rpc/%s/v%s/%s.go", server, version, service)
+func save(path string, t tpl) {
+	buf := &bytes.Buffer{}
 
-	rpcPkg = fmt.Sprintf("%s/rpc/%s/v%s", rootPkg, server, version)
-
-	if !fileExists(twirpFile) {
-		panic("twirp file does not exist: " + twirpFile)
+	tmpl, err := template.New("sniper").Parse(t.tpl())
+	if err != nil {
+		panic(err)
 	}
 
-	genOrUpdateTwirpServer()
-}
-
-func save(path string, buf []byte) {
+	err = tmpl.Execute(buf, t)
+	if err != nil {
+		panic(err)
+	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		panic(err)
 	}
 
-	if err := os.WriteFile(path, buf, 0644); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
 		panic(err)
 	}
 }

@@ -1,7 +1,21 @@
 package rpc
 
-const (
-	serverTpl = `
+import (
+	"strings"
+)
+
+type tpl interface {
+	tpl() string
+}
+
+type srvTpl struct {
+	Server  string // 服务
+	Version string // 版本
+	Service string // 子服务
+}
+
+func (t *srvTpl) tpl() string {
+	return strings.TrimLeft(`
 package {{.Server}}_v{{.Version}}
 
 import (
@@ -20,41 +34,71 @@ func (s *{{.Service}}Server) Hooks() map[string]*twirp.ServerHooks {
 		// "Echo": nil, // Echo 方法的 hooks
 	}
 }
-`
+`, "\n")
+}
 
-	funcTpl = `
+type funcTpl struct {
+	Service  string // 服务名
+	Name     string // 函数名
+	ReqType  string // 请求消息类型
+	RespType string // 返回消息类型
+}
+
+func (t *funcTpl) tpl() string {
+	return strings.TrimLeft(`
 func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *{{.ReqType}}) (resp *{{.RespType}}, err error) {
+	{{ if eq .Name  "Echo" }}
+	return &{{.Service}}EchoResp{Msg: req.Msg}, nil
+	{{ else }}
 	// FIXME 请开始你的表演
 	return
+	{{ end }}
 }
-`
-
-	echoFuncTpl = `
-func (s *{{.Service}}Server) Echo(ctx context.Context, req *{{.Service}}EchoReq) (resp *{{.Service}}EchoResp, err error) {
-	return &{{.Service}}EchoResp{Msg: req.Msg}, nil
+`, "\n")
 }
-`
 
-	regServerTpl = `
+type regSrvTpl struct {
+	Server  string // 服务
+	Version string // 版本
+	Service string // 子服务
+}
+
+func (t *regSrvTpl) tpl() string {
+	return strings.TrimLeft(`
 package main
 func main() {
 	{
-		server := &{{.Server}}_v{{.Version}}.{{.Service}}Server{}
-		hooks := twirp.ChainHooks(commonHooks, hooks.ServerHooks(server))
-		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(server, hooks)
+		s := &{{.Server}}_v{{.Version}}.{{.Service}}Server{}
+		hooks := twirp.ChainHooks(commonHooks, hooks.ServerHooks(s))
+		handler := {{.Server}}_v{{.Version}}.New{{.Service}}Server(s,hooks)
 		mux.Handle({{.Server}}_v{{.Version}}.{{.Service}}PathPrefix, handler)
 	}
 }
-`
+`, "\n")
+}
 
-	importTpl = `
+type impTpl struct {
+	Name string
+	Path string
+}
+
+func (t *impTpl) tpl() string {
+	return strings.TrimLeft(`
 package main
 import(
-	{{.PKGName}} {{.RPCPath}}
+	{{.Name}} {{.Path}}
 )
-`
+`, "\n")
+}
 
-	protoTpl = `
+type protoTpl struct {
+	Server  string // 服务
+	Version string // 版本
+	Service string // 子服务
+}
+
+func (t *protoTpl) tpl() string {
+	return strings.TrimLeft(`
 syntax = "proto3";
 
 package {{.Server}}.v{{.Version}};
@@ -74,5 +118,5 @@ message {{.Service}}EchoResp {
     // FIXME 响应字段必须写注释
     string msg = 1;
 }
-`
-)
+`, "\n")
+}

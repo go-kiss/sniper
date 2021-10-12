@@ -11,60 +11,19 @@ import (
 	"github.com/dave/dst/decorator"
 )
 
-// 追加的server
-var blockStmt *dst.BlockStmt
-
-// 追加的import
-var importRPCSpec *dst.ImportSpec
-var importServerSpec *dst.ImportSpec
-
-type regServerTplArgs struct {
-	Server  string
-	Hooks   string
-	Version string
-	Service string
-}
-
-type importTplArgs struct {
-	PKGName    string
-	RPCPath    string
-	ServerPath string
-}
-
 func serverImported(imports []*dst.ImportSpec) bool {
 	rpc := server + "_v" + version
 	for _, i := range imports {
-		if i.Name == nil {
-			continue
-		}
-
-		if i.Name.Name == rpc {
+		if i.Name != nil && i.Name.Name == rpc {
 			return true
 		}
 	}
 	return false
 }
 
-func appendServer(gen *dst.FuncDecl) {
-	blockStmt.Decs.Start.Replace("\n")
-	gen.Body.List = append(gen.Body.List, blockStmt)
-}
-
-func appendImportPKGs(file *dst.File) {
-	for _, decl := range file.Decls {
-		pkg, ok := decl.(*dst.GenDecl)
-		if !ok || pkg.Tok != token.IMPORT {
-			continue
-		}
-
-		pkg.Specs = append(pkg.Specs, importRPCSpec)
-	}
-}
-
-// 判断服务是否已经注册
 func serverRegistered(gen *dst.FuncDecl) bool {
-	for _, writeServer := range gen.Body.List {
-		bs, ok := writeServer.(*dst.BlockStmt)
+	for _, s := range gen.Body.List {
+		bs, ok := s.(*dst.BlockStmt)
 		if !ok {
 			continue
 		}
@@ -87,49 +46,68 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 	return false
 }
 
-func genServerTemplate() {
-	args := regServerTplArgs{
+func genServerRoute(fd *dst.FuncDecl) {
+	if serverRegistered(fd) {
+		return
+	}
+
+	args := &regSrvTpl{
 		Server:  server,
 		Version: version,
 		Service: upper1st(service),
 	}
-	tmpl, err := template.New("test").Parse(regServerTpl)
+	t, err := template.New("sniper").Parse(args.tpl())
 	if err != nil {
 		panic(err)
 	}
 	buf := &bytes.Buffer{}
-	err = tmpl.Execute(buf, args)
+	if err := t.Execute(buf, args); err != nil {
+		panic(err)
+	}
+
+	s := token.NewFileSet()
+	f, err := decorator.ParseFile(s, "", buf.String(), parser.ParseComments)
 	if err != nil {
 		panic(err)
 	}
 
-	serverSet := token.NewFileSet()
-	importAst, err := decorator.ParseFile(serverSet, "", buf.String(), parser.ParseComments)
-	if err != nil {
-		panic(err)
+	stmt := f.Decls[0].(*dst.FuncDecl).Body.List[0].(*dst.BlockStmt)
+	if len(fd.Body.List) > 0 {
+		stmt.Decs.Start.Replace("\n")
 	}
-	blockStmt = importAst.Decls[0].(*dst.FuncDecl).Body.List[0].(*dst.BlockStmt)
+	fd.Body.List = append(fd.Body.List, stmt)
 }
 
-func genPKGTemplate() {
-	importRPC := server + "_v" + version
-	importRPCPath := fmt.Sprintf("\"%s/rpc/%s/v%s\"", rootPkg, server, version)
-	importServerPath := fmt.Sprintf("\"%s/server/%sserver%s\"", rootPkg, server, version)
-	args := importTplArgs{PKGName: importRPC, RPCPath: importRPCPath, ServerPath: importServerPath}
-	tmpl, err := template.New("test").Parse(importTpl)
+func genImport(file *dst.File) {
+	if serverImported(file.Imports) {
+		return
+	}
+
+	args := impTpl{
+		Name: server + "_v" + version,
+		Path: fmt.Sprintf(`"%s/rpc/%s/v%s"`, module(), server, version),
+	}
+	t, err := template.New("sniper").Parse(args.tpl())
 	if err != nil {
 		panic(err)
 	}
 	buf := &bytes.Buffer{}
-	err = tmpl.Execute(buf, args)
+	if err := t.Execute(buf, args); err != nil {
+		panic(err)
+	}
+
+	s := token.NewFileSet()
+	f, err := decorator.ParseFile(s, "", buf.String(), parser.ParseComments)
 	if err != nil {
 		panic(err)
 	}
 
-	importSet := token.NewFileSet()
-	importAst, err := decorator.ParseFile(importSet, "", buf.String(), parser.ParseComments)
-	if err != nil {
-		panic(err)
+	spec := f.Decls[0].(*dst.GenDecl).Specs[0].(*dst.ImportSpec)
+	for _, decl := range file.Decls {
+		pkg, ok := decl.(*dst.GenDecl)
+		if ok && pkg.Tok == token.IMPORT {
+			pkg.Specs = append(pkg.Specs, spec)
+			return
+		}
 	}
-	importRPCSpec = importAst.Decls[0].(*dst.GenDecl).Specs[0].(*dst.ImportSpec)
 }
