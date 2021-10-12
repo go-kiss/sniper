@@ -246,12 +246,6 @@ func fileExists(file string) bool {
 }
 
 func genServerFile() {
-	fd, err := createDirAndFile(serverFile)
-	if err != nil {
-		panic(err)
-	}
-	defer fd.Close()
-
 	serverPkg := filepath.Base(filepath.Dir(serverFile))
 
 	args := struct {
@@ -274,8 +268,5 @@ func genServerFile() {
 		panic(err)
 	}
 
-	_, err = fd.Write(buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
+	save(serverFile, buf.Bytes())
 }

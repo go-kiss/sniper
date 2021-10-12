@@ -24,12 +24,5 @@ func genProto(protoFile string) {
 		panic(err)
 	}
 
-	fd, err := createDirAndFile(protoFile)
-	if err != nil {
-		panic(err)
-	}
-
-	if _, err := fd.Write(buf.Bytes()); err != nil {
-		panic(err)
-	}
+	save(protoFile, buf.Bytes())
 }

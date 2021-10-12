@@ -120,6 +120,7 @@ func registerServer() {
 		genPKGTemplate()
 		appendImportPKGs(httpAST)
 	}
+
 	// 处理注册路由
 	for _, decl := range httpAST.Decls {
 		gen, ok := decl.(*dst.FuncDecl)
@@ -161,13 +162,15 @@ func genImplements() {
 	genOrUpdateTwirpServer()
 }
 
-func createDirAndFile(path string) (*os.File, error) {
+func save(path string, buf []byte) {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	return os.Create(path)
+	if err := os.WriteFile(path, buf, 0644); err != nil {
+		panic(err)
+	}
 }
 
 func parseAST(file string) (*ast.File, *token.FileSet) {
