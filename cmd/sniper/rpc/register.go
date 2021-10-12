@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"strings"
 	"text/template"
 
 	"github.com/dave/dst"
@@ -105,8 +106,34 @@ func genImport(file *dst.File) {
 	spec := f.Decls[0].(*dst.GenDecl).Specs[0].(*dst.ImportSpec)
 	for _, decl := range file.Decls {
 		pkg, ok := decl.(*dst.GenDecl)
+		// http.go 导包分三组
+		//
+		// "net/http"
+		//
+		// "sniper/cmd/http/hooks"
+		//
+		// "github.com/go-kiss/sniper/pkg/twirp"
+		//
+		// 下面代码 rpc 包导入语句插入到上面第二组中
 		if ok && pkg.Tok == token.IMPORT {
-			pkg.Specs = append(pkg.Specs, spec)
+			i := 0 // 记录第二组最后一行的位置
+			for _, s := range pkg.Specs {
+				i++
+				is := s.(*dst.ImportSpec)
+				// 第二组的包都以项目包名开头
+				if !strings.Contains(is.Path.Value, module()+"/") {
+					continue
+				}
+				// 最后一行的 After 为 EmtyLine，表示下面是空行
+				if is.Decs.After != dst.EmptyLine {
+					continue
+				}
+				// 注册新路由后需要清理倒数第二行后面的空行
+				is.Decs.After = dst.NewLine
+				break
+			}
+			pkg.Specs = append(pkg.Specs[:i+1], pkg.Specs[i:]...)
+			pkg.Specs[i] = spec
 			return
 		}
 	}
