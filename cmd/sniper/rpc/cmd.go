@@ -3,24 +3,21 @@ package rpc
 // 几乎所有代码由欧阳完成，我只是搬运过来。
 
 import (
-	"bufio"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/spf13/cobra"
+	"golang.org/x/mod/modfile"
 )
 
 var (
-	// 服务相关变量
 	rootDir, rootPkg, server, service, version string
 
 	twirpFile, serverFile, rpcPkg string
@@ -28,7 +25,7 @@ var (
 
 func init() {
 	wd, _ := os.Getwd()
-	module := getModuleName(wd)
+	module := getModuleName()
 
 	Cmd.Flags().StringVar(&rootDir, "root", wd, "项目根目录")
 	Cmd.Flags().StringVar(&rootPkg, "package", module, "项目总包名")
@@ -39,25 +36,18 @@ func init() {
 	Cmd.MarkFlagRequired("server")
 }
 
-func getModuleName(wd string) (module string) {
-	f, err := os.Open(wd + "/go.mod")
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	l, err := bufio.NewReader(f).ReadString('\n')
+func getModuleName() string {
+	b, err := os.ReadFile("go.mod")
 	if err != nil {
 		panic(err)
 	}
-	fields := strings.Fields(l)
 
-	module = "sniper"
-	if len(fields) == 2 {
-		module = fields[1]
+	f, err := modfile.Parse("", b, nil)
+	if err != nil {
+		panic(err)
 	}
 
-	return module
+	return f.Module.Mod.Path
 }
 
 // Cmd 接口生成工具
@@ -162,7 +152,7 @@ func createDirAndFile(path string) (*os.File, error) {
 }
 
 func parseAST(file string) (*ast.File, *token.FileSet) {
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		panic(err)
 	}
