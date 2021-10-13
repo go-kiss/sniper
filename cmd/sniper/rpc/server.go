@@ -14,62 +14,118 @@ import (
 	"github.com/dave/dst/decorator/resolver/simple"
 )
 
-var serverFile string
-
 func genOrUpdateServer() {
-	serverFile = fmt.Sprintf("rpc/%s/v%s/%s.go", server, version, service)
+	serverPkg := server + "_v" + version
+	serverPath := fmt.Sprintf("rpc/%s/v%s/%s.go", server, version, service)
+	twirpPath := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
 
-	if !fileExists(serverFile) {
-		tpl := &srvTpl{
+	serverAst := parseServerAst(serverPath, serverPkg)
+	twirpAst := parseTwirpAst(twirpPath)
+
+	for _, d := range twirpAst.Decls {
+		if it, ok := isInterfaceType(d); ok {
+			imports := twirpAst.Imports
+
+			appendFuncs(serverAst, it, imports)
+			updateComments(serverAst, it)
+
+			saveCode(serverAst, imports, serverPath, serverPkg)
+
+			return // 只处理第一个服务
+		}
+	}
+}
+
+func isInterfaceType(d dst.Decl) (*dst.InterfaceType, bool) {
+	gd, ok := d.(*dst.GenDecl)
+	if !ok || gd.Tok != token.TYPE {
+		return nil, false
+	}
+
+	it, ok := gd.Specs[0].(*dst.TypeSpec).Type.(*dst.InterfaceType)
+	if !ok {
+		return nil, false
+	}
+
+	return it, true
+}
+
+func parseServerAst(path, pkg string) *dst.File {
+	d := decorator.NewDecoratorWithImports(nil, pkg, goast.New())
+	ast, err := d.Parse(readCode(path))
+	if err != nil {
+		panic(err)
+	}
+	return ast
+}
+
+func parseTwirpAst(path string) *dst.File {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	ast, err := decorator.Parse(b)
+	if err != nil {
+		panic(err)
+	}
+
+	return ast
+}
+
+func readCode(serverFile string) []byte {
+	var code []byte
+	if fileExists(serverFile) {
+		var err error
+		code, err = os.ReadFile(serverFile)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		t := &srvTpl{
 			Server:  server,
 			Version: version,
 			Service: upper1st(service),
 		}
 
-		save(serverFile, tpl)
-	}
+		buf := &bytes.Buffer{}
 
-	p := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
-	b, err := os.ReadFile(p)
+		tmpl, err := template.New("sniper").Parse(t.tpl())
+		if err != nil {
+			panic(err)
+		}
+
+		if err := tmpl.Execute(buf, t); err != nil {
+			panic(err)
+		}
+		code = buf.Bytes()
+	}
+	return code
+}
+
+func saveCode(ast *dst.File, imports []*dst.ImportSpec, file, pkg string) {
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(err)
 	}
-	f, err := decorator.Parse(b)
-	if err != nil {
-		panic(err)
+	defer f.Close()
+
+	rr := simple.RestorerResolver{}
+	for _, i := range imports {
+		alias := i.Name.Name
+		path, _ := strconv.Unquote(i.Path.Value)
+		rr[path] = alias
 	}
-
-	for _, d := range f.Decls {
-		gd, ok := d.(*dst.GenDecl)
-		if !ok || gd.Tok != token.TYPE {
-			continue
-		}
-		it, ok := gd.Specs[0].(*dst.TypeSpec).Type.(*dst.InterfaceType)
-		if !ok {
-			continue
-		}
-
-		appendFuncs(it, f.Imports)
-		updateComments(it)
-
-		return // 只处理第一个服务
+	r := decorator.NewRestorerWithImports(pkg, rr)
+	if err := r.Fprint(f, ast); err != nil {
+		panic(err)
 	}
 }
 
-func updateComments(twirp *dst.InterfaceType) {
+func updateComments(serverAst *dst.File, twirp *dst.InterfaceType) {
 	comments := getComments(twirp)
 
-	b, err := os.ReadFile(serverFile)
-	if err != nil {
-		return
-	}
-	f, err := decorator.Parse(b)
-	if err != nil {
-		return
-	}
-
-	decls := make([]dst.Decl, 0, len(f.Decls))
-	for _, decl := range f.Decls {
+	decls := make([]dst.Decl, 0, len(serverAst.Decls))
+	for _, decl := range serverAst.Decls {
 		decls = append(decls, decl)
 
 		switch d := decl.(type) {
@@ -120,28 +176,18 @@ func updateComments(twirp *dst.InterfaceType) {
 			}
 		}
 	}
-	f.Decls = decls
-
-	fb, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		panic(err)
-	}
-	defer fb.Close()
-
-	decorator.Fprint(fb, f)
+	serverAst.Decls = decls
 }
 
 func getComments(d *dst.InterfaceType) map[string]dst.Decorations {
-	comments := make(map[string]dst.Decorations)
+	comments := map[string]dst.Decorations{}
 	// rpc service注释单独添加
-	if d.Decs.Interface != nil {
-		comments[upper1st(service)] = d.Decs.Interface
-	}
+	comments[upper1st(service)] = d.Decs.Interface
 
 	for _, method := range d.Methods.List {
 		name := method.Names[0].Name
-		if name == "Do" || name == "ServiceDescriptor" ||
-			name == "ProtocGenTwirpVersion" {
+
+		if isTwirpFunc(name) {
 			continue
 		}
 
@@ -151,37 +197,22 @@ func getComments(d *dst.InterfaceType) map[string]dst.Decorations {
 	return comments
 }
 
-func appendFuncs(twirp *dst.InterfaceType, imports []*dst.ImportSpec) {
-	local := server + "_v" + version
-
-	d := decorator.NewDecoratorWithImports(nil, local, goast.New())
-	b, err := os.ReadFile(serverFile)
-	if err != nil {
-		panic(err)
-	}
-	server, err := d.Parse(b)
-	if err != nil {
-		panic(err)
-	}
-	definedFuncs := scanDefinedFuncs(server)
+func appendFuncs(serverAst *dst.File, twirp *dst.InterfaceType, imports []*dst.ImportSpec) {
+	definedFuncs := scanDefinedFuncs(serverAst)
 
 	buf := &bytes.Buffer{}
 	buf.WriteString("package main\n")
 
-	rr := simple.RestorerResolver{}
 	for _, i := range imports {
-		name := i.Name.Name
-		path, _ := strconv.Unquote(i.Path.Value)
+		alias := i.Name.Name
 		// twirp 文件导入的包都有别名
-		fmt.Fprintf(buf, "import %s \"%s\"\n", name, path)
-		rr[path] = name
+		fmt.Fprintf(buf, "import %s %s\n", alias, i.Path.Value)
 	}
 
 	for _, m := range twirp.Methods.List {
 		name := m.Names[0].Name
 
-		if name == "Do" || name == "ServiceDescriptor" ||
-			name == "ProtocGenTwirpVersion" {
+		if isTwirpFunc(name) {
 			continue
 		}
 
@@ -197,31 +228,23 @@ func appendFuncs(twirp *dst.InterfaceType, imports []*dst.ImportSpec) {
 		appendFunc(buf, name, getType(in), getType(out))
 	}
 
-	if buf.Len() == 0 {
-		return
-	}
-
-	ff, err := d.Parse(buf.Bytes())
+	pkg := server + "_v" + version
+	d := decorator.NewDecoratorWithImports(nil, pkg, goast.New())
+	f, err := d.Parse(buf.Bytes())
 	if err != nil {
 		panic(err)
 	}
 
-	for _, d := range ff.Decls {
+	for _, d := range f.Decls {
 		if v, ok := d.(*dst.FuncDecl); ok {
-			server.Decls = append(server.Decls, v)
+			serverAst.Decls = append(serverAst.Decls, v)
 		}
 	}
+}
 
-	f, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	r := decorator.NewRestorerWithImports(local, rr)
-	if err := r.Fprint(f, server); err != nil {
-		panic(err)
-	}
+func isTwirpFunc(name string) bool {
+	return name == "Do" || name == "ServiceDescriptor" ||
+		name == "ProtocGenTwirpVersion"
 }
 
 func getType(e dst.Expr) string {
