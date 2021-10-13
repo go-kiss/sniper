@@ -3,18 +3,15 @@ package rpc
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/printer"
 	"go/token"
 	"os"
 	"strconv"
-	"strings"
 	"text/template"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"golang.org/x/tools/go/ast/astutil"
+	"github.com/dave/dst/decorator/resolver/goast"
+	"github.com/dave/dst/decorator/resolver/simple"
 )
 
 var serverFile string
@@ -33,25 +30,40 @@ func genOrUpdateServer() {
 	}
 
 	p := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
-	f := parseAST(p, nil)
+	b, err := os.ReadFile(p)
+	if err != nil {
+		panic(err)
+	}
+	f, err := decorator.Parse(b)
+	if err != nil {
+		panic(err)
+	}
+
 	for _, d := range f.Decls {
-		gd, ok := d.(*ast.GenDecl)
+		gd, ok := d.(*dst.GenDecl)
 		if !ok || gd.Tok != token.TYPE {
 			continue
 		}
+		it, ok := gd.Specs[0].(*dst.TypeSpec).Type.(*dst.InterfaceType)
+		if !ok {
+			continue
+		}
 
-		appendFuncs(gd, f)
-		updateComments(gd)
+		appendFuncs(it, f.Imports)
+		updateComments(it)
 
 		return // 只处理第一个服务
 	}
 }
 
-func updateComments(d *ast.GenDecl) {
-	comments := getComments(d)
+func updateComments(twirp *dst.InterfaceType) {
+	comments := getComments(twirp)
 
-	fset := token.NewFileSet()
-	f, err := decorator.ParseFile(fset, serverFile, nil, parser.ParseComments)
+	b, err := os.ReadFile(serverFile)
+	if err != nil {
+		return
+	}
+	f, err := decorator.Parse(b)
 	if err != nil {
 		return
 	}
@@ -61,7 +73,7 @@ func updateComments(d *ast.GenDecl) {
 		decls = append(decls, decl)
 
 		switch d := decl.(type) {
-		case *dst.GenDecl: // 处理 server struct 注释
+		case *dst.GenDecl: // 服务注释
 			if d.Tok != token.TYPE {
 				continue
 			}
@@ -77,13 +89,11 @@ func updateComments(d *ast.GenDecl) {
 				version,
 				upper1st(service),
 			)
-			if comment := comments[upper1st(service)]; comment != nil {
+			if c := comments[upper1st(service)]; c != nil {
 				d.Decs.Start.Replace("// " + api + "\n")
-				for _, c := range comment.List {
-					d.Decs.Start.Append(c.Text)
-				}
+				d.Decs.Start.Append(c...)
 			}
-		case *dst.FuncDecl: // 函数处理注释
+		case *dst.FuncDecl: // 函数注释
 			api := fmt.Sprintf(
 				"%s 实现 /%s.v%s.%s/%s 接口",
 				d.Name.Name,
@@ -93,11 +103,9 @@ func updateComments(d *ast.GenDecl) {
 				d.Name.Name,
 			)
 
-			if comment, ok := comments[d.Name.Name]; comment != nil {
+			if c, ok := comments[d.Name.Name]; c != nil {
 				d.Decs.Start.Replace("// " + api + "\n")
-				for _, c := range comment.List {
-					d.Decs.Start.Append(c.Text)
-				}
+				d.Decs.Start.Append(c...)
 			} else if !ok {
 				if d.Recv != nil && d.Name.IsExported() && d.Name.Name != "Hooks" {
 					// 删除 proto 中不存在的方法
@@ -123,132 +131,107 @@ func updateComments(d *ast.GenDecl) {
 	decorator.Fprint(fb, f)
 }
 
-func getComments(d *ast.GenDecl) map[string]*ast.CommentGroup {
-	comments := make(map[string]*ast.CommentGroup)
+func getComments(d *dst.InterfaceType) map[string]dst.Decorations {
+	comments := make(map[string]dst.Decorations)
 	// rpc service注释单独添加
-	if d.Doc != nil {
-		comments[upper1st(service)] = d.Doc
+	if d.Decs.Interface != nil {
+		comments[upper1st(service)] = d.Decs.Interface
 	}
 
-	for _, s := range d.Specs {
-		ts, ok := s.(*ast.TypeSpec)
-		if !ok {
+	for _, method := range d.Methods.List {
+		name := method.Names[0].Name
+		if name == "Do" || name == "ServiceDescriptor" ||
+			name == "ProtocGenTwirpVersion" {
 			continue
 		}
 
-		it, ok := ts.Type.(*ast.InterfaceType)
-		if !ok {
-			continue
-		}
-
-		for _, method := range it.Methods.List {
-			name := method.Names[0].Name
-			if name == "Do" || name == "ServiceDescriptor" ||
-				name == "ProtocGenTwirpVersion" {
-				continue
-			}
-
-			comments[name] = method.Doc
-		}
+		comments[name] = method.Decs.Start
 	}
 
 	return comments
 }
 
-func addImport(t string, imported []*ast.ImportSpec, f *ast.File) {
-	var name, path string
-	for _, i := range imported {
-		path, _ = strconv.Unquote(i.Path.Value)
-		if i.Name != nil {
-			name = i.Name.Name
-			if strings.HasPrefix(t, name+".") {
-				break
-			}
-		} else {
-			parts := strings.Split(path, "/")
-			name = parts[len(parts)-1]
-			if strings.HasPrefix(t, name+".") {
-				break
-			}
-		}
+func appendFuncs(twirp *dst.InterfaceType, imports []*dst.ImportSpec) {
+	local := server + "_v" + version
+
+	d := decorator.NewDecoratorWithImports(nil, local, goast.New())
+	b, err := os.ReadFile(serverFile)
+	if err != nil {
+		panic(err)
 	}
-	astutil.AddNamedImport(fset, f, name, path)
-}
+	server, err := d.Parse(b)
+	if err != nil {
+		panic(err)
+	}
+	definedFuncs := scanDefinedFuncs(server)
 
-func appendFuncs(twirp *ast.GenDecl, f *ast.File) {
 	buf := &bytes.Buffer{}
-
-	definedFuncs := scanDefinedFuncs(serverFile)
-	sf := parseAST(serverFile, nil)
-
 	buf.WriteString("package main\n")
-	for _, s := range twirp.Specs {
-		ts, ok := s.(*ast.TypeSpec)
-		if !ok {
+
+	rr := simple.RestorerResolver{}
+	for _, i := range imports {
+		name := i.Name.Name
+		path, _ := strconv.Unquote(i.Path.Value)
+		// twirp 文件导入的包都有别名
+		fmt.Fprintf(buf, "import %s \"%s\"\n", name, path)
+		rr[path] = name
+	}
+
+	for _, m := range twirp.Methods.List {
+		name := m.Names[0].Name
+
+		if name == "Do" || name == "ServiceDescriptor" ||
+			name == "ProtocGenTwirpVersion" {
 			continue
 		}
 
-		it, ok := ts.Type.(*ast.InterfaceType)
-		if !ok {
+		if definedFuncs[name] {
 			continue
 		}
 
-		for _, m := range it.Methods.List {
-			name := m.Names[0].Name
-			if name == "Do" || name == "ServiceDescriptor" ||
-				name == "ProtocGenTwirpVersion" {
-				continue
-			}
+		ft := m.Type.(*dst.FuncType)
 
-			if definedFuncs[name] {
-				continue
-			}
+		in := ft.Params.List[1].Type.(*dst.StarExpr).X
+		out := ft.Results.List[0].Type.(*dst.StarExpr).X
 
-			ft := m.Type.(*ast.FuncType)
-
-			in := ft.Params.List[1].Type.(*ast.StarExpr).X
-			reqType, ok := getName(in)
-			if ok {
-				addImport(reqType, f.Imports, sf)
-			}
-
-			out := ft.Results.List[0].Type.(*ast.StarExpr).X
-			respType, ok := getName(out)
-			if ok {
-				addImport(respType, f.Imports, sf)
-			}
-
-			fname := m.Names[0].Name
-			appendFunc(buf, fname, reqType, respType)
-		}
+		appendFunc(buf, name, getType(in), getType(out))
 	}
 
 	if buf.Len() == 0 {
 		return
 	}
 
-	ff := parseAST("", buf.Bytes())
-	sf.Decls = append(sf.Decls, ff.Decls...)
-
-	of, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_TRUNC, 0644)
+	ff, err := d.Parse(buf.Bytes())
 	if err != nil {
 		panic(err)
 	}
-	defer of.Close()
 
-	if err := printer.Fprint(of, fset, sf); err != nil {
+	for _, d := range ff.Decls {
+		if v, ok := d.(*dst.FuncDecl); ok {
+			server.Decls = append(server.Decls, v)
+		}
+	}
+
+	f, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	r := decorator.NewRestorerWithImports(local, rr)
+	if err := r.Fprint(f, server); err != nil {
 		panic(err)
 	}
 }
 
-func getName(e ast.Expr) (string, bool) {
+func getType(e dst.Expr) string {
 	switch v := e.(type) {
-	case *ast.Ident:
-		return v.Name, false
-	case *ast.SelectorExpr:
-		return v.X.(*ast.Ident).Name + "." + v.Sel.Name, true
+	case *dst.Ident:
+		return v.Name
+	case *dst.SelectorExpr:
+		return v.X.(*dst.Ident).Name + "." + v.Sel.Name
 	}
-	return "", false
+	return ""
 }
 
 func appendFunc(buf *bytes.Buffer, name, reqType, respType string) {
@@ -269,11 +252,11 @@ func appendFunc(buf *bytes.Buffer, name, reqType, respType string) {
 	}
 }
 
-func scanDefinedFuncs(file string) map[string]bool {
-	f := parseAST(file, nil)
+func scanDefinedFuncs(file *dst.File) map[string]bool {
 	fs := make(map[string]bool)
-	for _, decl := range f.Decls {
-		if f, ok := decl.(*ast.FuncDecl); ok {
+
+	for _, decl := range file.Decls {
+		if f, ok := decl.(*dst.FuncDecl); ok {
 			fs[f.Name.Name] = true
 		}
 	}

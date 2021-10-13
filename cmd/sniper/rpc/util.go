@@ -2,17 +2,12 @@ package rpc
 
 import (
 	"bytes"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"text/template"
 
 	"golang.org/x/mod/modfile"
 )
-
-var fset = token.NewFileSet()
 
 func module() string {
 	b, err := os.ReadFile("go.mod")
@@ -46,23 +41,6 @@ func isSniperDir() bool {
 	}
 
 	return c == len(sniperDirs)
-}
-
-func parseAST(file string, b []byte) *ast.File {
-	if b == nil {
-		var err error
-		b, err = os.ReadFile(file)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	f, err := parser.ParseFile(fset, file, string(b), parser.ParseComments)
-	if err != nil {
-		panic(err)
-	}
-
-	return f
 }
 
 func upper1st(s string) string {
