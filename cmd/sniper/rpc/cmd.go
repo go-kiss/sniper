@@ -30,7 +30,7 @@ var Cmd = &cobra.Command{
 - 生成 rpc/**/*.twirp.go
 - 注册接口到 http server`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if isSniperDir() {
+		if !isSniperDir() {
 			color.Red("只能在 sniper 项目根目录运行!")
 			os.Exit(1)
 		}

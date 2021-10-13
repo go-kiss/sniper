@@ -33,14 +33,14 @@ func genOrUpdateServer() {
 	}
 
 	p := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
-	f, fs := parseAST(p, nil)
+	f := parseAST(p, nil)
 	for _, d := range f.Decls {
 		gd, ok := d.(*ast.GenDecl)
 		if !ok || gd.Tok != token.TYPE {
 			continue
 		}
 
-		appendFuncs(gd, f, fs)
+		appendFuncs(gd, f)
 		updateComments(gd)
 
 		return // 只处理第一个服务
@@ -112,7 +112,6 @@ func updateComments(d *ast.GenDecl) {
 			}
 		}
 	}
-
 	f.Decls = decls
 
 	fb, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
@@ -156,7 +155,7 @@ func getComments(d *ast.GenDecl) map[string]*ast.CommentGroup {
 	return comments
 }
 
-func addImport(t string, imported []*ast.ImportSpec, f *ast.File, fs *token.FileSet) {
+func addImport(t string, imported []*ast.ImportSpec, f *ast.File) {
 	var name, path string
 	for _, i := range imported {
 		path, _ = strconv.Unquote(i.Path.Value)
@@ -173,16 +172,17 @@ func addImport(t string, imported []*ast.ImportSpec, f *ast.File, fs *token.File
 			}
 		}
 	}
-	astutil.AddNamedImport(fs, f, name, path)
+	astutil.AddNamedImport(fset, f, name, path)
 }
 
-func appendFuncs(d *ast.GenDecl, f *ast.File, fs *token.FileSet) {
+func appendFuncs(twirp *ast.GenDecl, f *ast.File) {
 	buf := &bytes.Buffer{}
 
 	definedFuncs := scanDefinedFuncs(serverFile)
-	sf, fs := parseAST(serverFile, nil)
+	sf := parseAST(serverFile, nil)
 
-	for _, s := range d.Specs {
+	buf.WriteString("package main\n")
+	for _, s := range twirp.Specs {
 		ts, ok := s.(*ast.TypeSpec)
 		if !ok {
 			continue
@@ -209,13 +209,13 @@ func appendFuncs(d *ast.GenDecl, f *ast.File, fs *token.FileSet) {
 			in := ft.Params.List[1].Type.(*ast.StarExpr).X
 			reqType, ok := getName(in)
 			if ok {
-				addImport(reqType, f.Imports, sf, fs)
+				addImport(reqType, f.Imports, sf)
 			}
 
 			out := ft.Results.List[0].Type.(*ast.StarExpr).X
 			respType, ok := getName(out)
 			if ok {
-				addImport(respType, f.Imports, sf, fs)
+				addImport(respType, f.Imports, sf)
 			}
 
 			fname := m.Names[0].Name
@@ -227,7 +227,7 @@ func appendFuncs(d *ast.GenDecl, f *ast.File, fs *token.FileSet) {
 		return
 	}
 
-	ff, _ := parseAST("", buf.Bytes())
+	ff := parseAST("", buf.Bytes())
 	sf.Decls = append(sf.Decls, ff.Decls...)
 
 	of, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_TRUNC, 0644)
@@ -236,7 +236,7 @@ func appendFuncs(d *ast.GenDecl, f *ast.File, fs *token.FileSet) {
 	}
 	defer of.Close()
 
-	if err := printer.Fprint(of, fs, sf); err != nil {
+	if err := printer.Fprint(of, fset, sf); err != nil {
 		panic(err)
 	}
 }
@@ -270,9 +270,9 @@ func appendFunc(buf *bytes.Buffer, name, reqType, respType string) {
 }
 
 func scanDefinedFuncs(file string) map[string]bool {
-	r, _ := parseAST(file, nil)
+	f := parseAST(file, nil)
 	fs := make(map[string]bool)
-	for _, decl := range r.Decls {
+	for _, decl := range f.Decls {
 		if f, ok := decl.(*ast.FuncDecl); ok {
 			fs[f.Name.Name] = true
 		}

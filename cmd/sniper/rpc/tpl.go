@@ -45,8 +45,7 @@ type funcTpl struct {
 }
 
 func (t *funcTpl) tpl() string {
-	return strings.TrimLeft(`
-package main
+	return `
 func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *{{.ReqType}}) (resp *{{.RespType}}, err error) {
 	{{ if eq .Name  "Echo" }}
 	return &{{.Service}}EchoResp{Msg: req.Msg}, nil
@@ -55,7 +54,7 @@ func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *{{.ReqType}}) (
 	return
 	{{ end }}
 }
-`, "\n")
+`
 }
 
 type regSrvTpl struct {

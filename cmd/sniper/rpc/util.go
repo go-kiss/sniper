@@ -12,6 +12,8 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+var fset = token.NewFileSet()
+
 func module() string {
 	b, err := os.ReadFile("go.mod")
 	if err != nil {
@@ -43,10 +45,10 @@ func isSniperDir() bool {
 		}
 	}
 
-	return c != len(sniperDirs)
+	return c == len(sniperDirs)
 }
 
-func parseAST(file string, b []byte) (*ast.File, *token.FileSet) {
+func parseAST(file string, b []byte) *ast.File {
 	if b == nil {
 		var err error
 		b, err = os.ReadFile(file)
@@ -55,13 +57,12 @@ func parseAST(file string, b []byte) (*ast.File, *token.FileSet) {
 		}
 	}
 
-	fset := token.NewFileSet()
-	a, err := parser.ParseFile(fset, "", string(b), parser.ParseComments)
+	f, err := parser.ParseFile(fset, file, string(b), parser.ParseComments)
 	if err != nil {
 		panic(err)
 	}
 
-	return a, fset
+	return f
 }
 
 func upper1st(s string) string {
