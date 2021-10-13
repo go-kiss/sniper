@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"os"
 	"strings"
 	"text/template"
 
@@ -136,5 +137,33 @@ func genImport(file *dst.File) {
 			pkg.Specs[i] = spec
 			return
 		}
+	}
+}
+
+func registerServer() {
+	httpFile := "cmd/http/http.go"
+	fset := token.NewFileSet()
+	httpAST, err := decorator.ParseFile(fset, httpFile, nil, parser.ParseComments)
+	if err != nil {
+		panic(err)
+	}
+
+	genImport(httpAST)
+
+	// 处理注册路由
+	for _, decl := range httpAST.Decls {
+		f, ok := decl.(*dst.FuncDecl)
+		if ok && f.Name.Name == "initMux" {
+			genServerRoute(f)
+		}
+	}
+
+	f, err := os.OpenFile(httpFile, os.O_WRONLY|os.O_CREATE, 0766)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	if err := decorator.Fprint(f, httpAST); err != nil {
+		panic(err)
 	}
 }
