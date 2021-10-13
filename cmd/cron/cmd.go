@@ -19,7 +19,7 @@ import (
 	"github.com/go-kiss/sniper/pkg/trace"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	crond "github.com/robfig/cron"
+	crond "github.com/robfig/cron/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -180,7 +180,7 @@ func init() {
 	)
 }
 
-// sepc 参数请参考 https://godoc.org/github.com/robfig/cron
+// sepc 参数请参考 https://pkg.go.dev/github.com/robfig/cron/v3
 func cron(name string, spec string, job func(ctx context.Context) error) {
 	if _, ok := jobs[name]; ok {
 		panic(name + " is used")
@@ -193,7 +193,7 @@ func cron(name string, spec string, job func(ctx context.Context) error) {
 		return
 	}
 
-	if err := c.AddJob(spec, j); err != nil {
+	if _, err := c.AddJob(spec, j); err != nil {
 		panic(err)
 	}
 }
