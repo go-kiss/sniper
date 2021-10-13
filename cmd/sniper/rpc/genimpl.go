@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"os"
+	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 func genOrUpdateServer() {
@@ -25,14 +29,14 @@ func genOrUpdateServer() {
 	}
 
 	p := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
-	f, _ := parseAST(p)
+	f, fs := parseAST(p, nil)
 	for _, d := range f.Decls {
 		gd, ok := d.(*ast.GenDecl)
 		if !ok || gd.Tok != token.TYPE {
 			continue
 		}
 
-		appendFuncs(gd)
+		appendFuncs(gd, f, fs)
 		updateComments(gd)
 
 		return // 只处理第一个服务
@@ -148,10 +152,31 @@ func getComments(d *ast.GenDecl) map[string]*ast.CommentGroup {
 	return comments
 }
 
-func appendFuncs(d *ast.GenDecl) {
+func addImport(t string, imported []*ast.ImportSpec, f *ast.File, fs *token.FileSet) {
+	var name, path string
+	for _, i := range imported {
+		path, _ = strconv.Unquote(i.Path.Value)
+		if i.Name != nil {
+			name = i.Name.Name
+			if strings.HasPrefix(t, name+".") {
+				break
+			}
+		} else {
+			parts := strings.Split(path, "/")
+			name = parts[len(parts)-1]
+			if strings.HasPrefix(t, name+".") {
+				break
+			}
+		}
+	}
+	astutil.AddNamedImport(fs, f, name, path)
+}
+
+func appendFuncs(d *ast.GenDecl, f *ast.File, fs *token.FileSet) {
 	buf := &bytes.Buffer{}
 
 	definedFuncs := scanDefinedFuncs(serverFile)
+	sf, fs := parseAST(serverFile, nil)
 
 	for _, s := range d.Specs {
 		ts, ok := s.(*ast.TypeSpec)
@@ -175,7 +200,22 @@ func appendFuncs(d *ast.GenDecl) {
 				continue
 			}
 
-			appendFunc(buf, m)
+			ft := m.Type.(*ast.FuncType)
+
+			in := ft.Params.List[1].Type.(*ast.StarExpr).X
+			reqType, ok := getName(in)
+			if ok {
+				addImport(reqType, f.Imports, sf, fs)
+			}
+
+			out := ft.Results.List[0].Type.(*ast.StarExpr).X
+			respType, ok := getName(out)
+			if ok {
+				addImport(respType, f.Imports, sf, fs)
+			}
+
+			fname := m.Names[0].Name
+			appendFunc(buf, fname, reqType, respType)
 		}
 	}
 
@@ -183,31 +223,37 @@ func appendFuncs(d *ast.GenDecl) {
 		return
 	}
 
-	f, err := os.OpenFile(serverFile, os.O_RDWR|os.O_APPEND, 0644)
+	ff, _ := parseAST("", buf.Bytes())
+	sf.Decls = append(sf.Decls, ff.Decls...)
+
+	of, err := os.OpenFile(serverFile, os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
+	defer of.Close()
 
-	_, err = f.Write(buf.Bytes())
-
-	if err != nil {
+	if err := printer.Fprint(of, fs, sf); err != nil {
 		panic(err)
 	}
 }
 
-func appendFunc(buf *bytes.Buffer, f *ast.Field) {
-	args := &funcTpl{}
+func getName(e ast.Expr) (string, bool) {
+	switch v := e.(type) {
+	case *ast.Ident:
+		return v.Name, false
+	case *ast.SelectorExpr:
+		return v.X.(*ast.Ident).Name + "." + v.Sel.Name, true
+	}
+	return "", false
+}
 
-	args.Name = f.Names[0].Name
-
-	ft := f.Type.(*ast.FuncType)
-	// 如果使用导入的 message 作为入参或出参，生成的代码会有语法错误！
-	// 但处理这类情况比较复杂，这类用法也比较少，先不处理。
-	// 先尽量使用自定义消息吧。
-	args.ReqType = ft.Params.List[1].Type.(*ast.StarExpr).X.(*ast.Ident).Name
-	args.RespType = ft.Results.List[0].Type.(*ast.StarExpr).X.(*ast.Ident).Name
-	args.Service = upper1st(service)
+func appendFunc(buf *bytes.Buffer, name, reqType, respType string) {
+	args := &funcTpl{
+		Name:     name,
+		ReqType:  reqType,
+		RespType: respType,
+		Service:  upper1st(service),
+	}
 
 	t, err := template.New("server").Parse(args.tpl())
 	if err != nil {
@@ -220,7 +266,7 @@ func appendFunc(buf *bytes.Buffer, f *ast.Field) {
 }
 
 func scanDefinedFuncs(file string) map[string]bool {
-	r, _ := parseAST(file)
+	r, _ := parseAST(file, nil)
 	fs := make(map[string]bool)
 	for _, decl := range r.Decls {
 		if f, ok := decl.(*ast.FuncDecl); ok {

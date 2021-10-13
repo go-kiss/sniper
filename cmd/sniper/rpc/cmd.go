@@ -164,10 +164,13 @@ func save(path string, t tpl) {
 	}
 }
 
-func parseAST(file string) (*ast.File, *token.FileSet) {
-	b, err := os.ReadFile(file)
-	if err != nil {
-		panic(err)
+func parseAST(file string, b []byte) (*ast.File, *token.FileSet) {
+	if b == nil {
+		var err error
+		b, err = os.ReadFile(file)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	fset := token.NewFileSet()
