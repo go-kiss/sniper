@@ -1,4 +1,4 @@
-package ini
+package new
 
 import (
 	"os"
@@ -20,8 +20,8 @@ func init() {
 
 // Cmd 项目初始化工具
 var Cmd = &cobra.Command{
-	Use:   "init",
-	Short: "初始化 sniper 项目结构",
+	Use:   "new",
+	Short: "创建 sniper 项目",
 	Long:  `默认包名为 sniper`,
 	Run: func(cmd *cobra.Command, args []string) {
 		color.White(strings.TrimLeft(`

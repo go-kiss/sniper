@@ -1,11 +1,10 @@
 package main
 
 import (
-	"github.com/go-kiss/sniper/cmd/sniper/init"
+	"github.com/go-kiss/sniper/cmd/sniper/new"
 	"github.com/go-kiss/sniper/cmd/sniper/rpc"
 	"github.com/spf13/cobra"
 )
-
 
 // Cmd 脚手架命令
 var Cmd = &cobra.Command{
@@ -19,6 +18,6 @@ var Cmd = &cobra.Command{
 
 func main() {
 	Cmd.AddCommand(rpc.Cmd)
-	Cmd.AddCommand(ini.Cmd)
+	Cmd.AddCommand(new.Cmd)
 	Cmd.Execute()
 }
