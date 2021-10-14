@@ -13,7 +13,7 @@ sniper.toml 中的所有配置项都可以使用环境变量覆写。
 
 # 示例
 ```go
-import "sniper/pkg/conf"
+import "github.com/go-kiss/sniper/pkg/conf"
 
 b := conf.GetBool("IS_SHUTTING_DOWN")
 ```

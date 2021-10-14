@@ -303,4 +303,3 @@ if err := bookshelf.AddFavorite(ctx, id); err != nil {
 ```
 
 我们可以通过 SLB 报警及时发现此类错误并减少业务损失。
-
