@@ -76,7 +76,7 @@ https://github.com/go-kiss/sniper
 		}
 
 		color.Cyan("register foo service")
-		run("sniper", "rpc", "--server=foo", "--version=1", "--service=Bar")
+		run("sniper", "rpc", "--server=foo", "--version=1", "--service=bar")
 
 		color.Cyan("you can run service by")
 		color.Yellow("CONF_PATH=`pwd` go run main.go http")
