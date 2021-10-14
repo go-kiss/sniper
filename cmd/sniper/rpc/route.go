@@ -25,14 +25,14 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 		if !ok {
 			continue
 		}
-		se, ok := ue.X.(*dst.CompositeLit).Type.(*dst.SelectorExpr)
+		i, ok := ue.X.(*dst.CompositeLit).Type.(*dst.Ident)
 		if !ok {
 			continue
 		}
-		if se.X.(*dst.Ident).Name != server+"_v"+version {
+		if !strings.HasSuffix(i.Path, "/"+server+"/v"+version) {
 			continue
 		}
-		if se.Sel.Name != upper1st(service)+"Server" {
+		if i.Name != upper1st(service)+"Server" {
 			continue
 		}
 		return true
