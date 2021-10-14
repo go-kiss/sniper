@@ -79,7 +79,6 @@ func save(path string, t tpl) {
 	}
 }
 
-// 判断文件是否存在
 func fileExists(file string) bool {
 	fd, err := os.Open(file)
 	defer fd.Close()

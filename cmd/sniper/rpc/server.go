@@ -20,7 +20,7 @@ func genOrUpdateServer() {
 	twirpPath := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
 
 	serverAst := parseServerAst(serverPath, serverPkg)
-	twirpAst := parseTwirpAst(twirpPath)
+	twirpAst := parseServerAst(twirpPath, serverPkg)
 
 	for _, d := range twirpAst.Decls {
 		if it, ok := isInterfaceType(d); ok {
@@ -198,8 +198,6 @@ func getComments(d *dst.InterfaceType) map[string]dst.Decorations {
 }
 
 func appendFuncs(serverAst *dst.File, twirp *dst.InterfaceType, imports []*dst.ImportSpec) {
-	definedFuncs := scanDefinedFuncs(serverAst)
-
 	buf := &bytes.Buffer{}
 	buf.WriteString("package main\n")
 
@@ -209,6 +207,8 @@ func appendFuncs(serverAst *dst.File, twirp *dst.InterfaceType, imports []*dst.I
 		fmt.Fprintf(buf, "import %s %s\n", alias, i.Path.Value)
 	}
 
+	definedFuncs := scanDefinedFuncs(serverAst)
+
 	for _, m := range twirp.Methods.List {
 		name := m.Names[0].Name
 
@@ -216,11 +216,18 @@ func appendFuncs(serverAst *dst.File, twirp *dst.InterfaceType, imports []*dst.I
 			continue
 		}
 
-		if definedFuncs[name] {
+		ft := m.Type.(*dst.FuncType)
+
+		// 接口定义没有指定参数名
+		ft.Params.List[0].Names = []*dst.Ident{{Name: "ctx"}}
+		ft.Params.List[1].Names = []*dst.Ident{{Name: "req"}}
+		ft.Results.List[0].Names = []*dst.Ident{{Name: "resp"}}
+		ft.Results.List[1].Names = []*dst.Ident{{Name: "err"}}
+
+		if f, ok := definedFuncs[name]; ok {
+			f.Type = ft
 			continue
 		}
-
-		ft := m.Type.(*dst.FuncType)
 
 		in := ft.Params.List[1].Type.(*dst.StarExpr).X
 		out := ft.Results.List[0].Type.(*dst.StarExpr).X
@@ -237,7 +244,19 @@ func appendFuncs(serverAst *dst.File, twirp *dst.InterfaceType, imports []*dst.I
 
 	for _, d := range f.Decls {
 		if v, ok := d.(*dst.FuncDecl); ok {
-			serverAst.Decls = append(serverAst.Decls, v)
+			name := v.Name.Name
+			if _, ok := definedFuncs[name]; !ok {
+				serverAst.Decls = append(serverAst.Decls, v)
+			}
+		}
+	}
+
+	for _, d := range serverAst.Decls {
+		if v, ok := d.(*dst.FuncDecl); ok {
+			name := v.Name.Name
+			if f, ok := definedFuncs[name]; ok {
+				v.Type = f.Type
+			}
 		}
 	}
 }
@@ -275,12 +294,12 @@ func appendFunc(buf *bytes.Buffer, name, reqType, respType string) {
 	}
 }
 
-func scanDefinedFuncs(file *dst.File) map[string]bool {
-	fs := make(map[string]bool)
+func scanDefinedFuncs(file *dst.File) map[string]*dst.FuncDecl {
+	fs := make(map[string]*dst.FuncDecl)
 
 	for _, decl := range file.Decls {
 		if f, ok := decl.(*dst.FuncDecl); ok {
-			fs[f.Name.Name] = true
+			fs[f.Name.Name] = f
 		}
 	}
 
