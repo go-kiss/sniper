@@ -47,17 +47,18 @@ type funcTpl struct {
 func (t *funcTpl) tpl() string {
 	return `
 func (s *{{.Service}}Server) {{.Name}}(ctx context.Context, req *{{.ReqType}}) (resp *{{.RespType}}, err error) {
-	{{ if eq .Name  "Echo" }}
+	{{if eq .Name  "Echo"}}
 	return &{{.Service}}EchoResp{Msg: req.Msg}, nil
-	{{ else }}
+	{{else}}
 	// FIXME 请开始你的表演
 	return
-	{{ end }}
+	{{end}}
 }
 `
 }
 
 type regSrvTpl struct {
+	Package string // 包名
 	Server  string // 服务
 	Version string // 版本
 	Service string // 子服务
@@ -66,6 +67,7 @@ type regSrvTpl struct {
 func (t *regSrvTpl) tpl() string {
 	return strings.TrimLeft(`
 package main
+import {{.Server}}_v{{.Version}} "{{.Package}}/rpc/{{.Server}}/v{{.Version}}"
 func main() {
 	{
 		s := &{{.Server}}_v{{.Version}}.{{.Service}}Server{}
@@ -74,20 +76,6 @@ func main() {
 		mux.Handle({{.Server}}_v{{.Version}}.{{.Service}}PathPrefix, handler)
 	}
 }
-`, "\n")
-}
-
-type impTpl struct {
-	Name string
-	Path string
-}
-
-func (t *impTpl) tpl() string {
-	return strings.TrimLeft(`
-package main
-import(
-	{{.Name}} {{.Path}}
-)
 `, "\n")
 }
 

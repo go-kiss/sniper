@@ -19,8 +19,8 @@ func genOrUpdateServer() {
 	serverPath := fmt.Sprintf("rpc/%s/v%s/%s.go", server, version, service)
 	twirpPath := fmt.Sprintf("rpc/%s/v%s/%s.twirp.go", server, version, service)
 
-	serverAst := parseServerAst(serverPath, serverPkg)
-	twirpAst := parseServerAst(twirpPath, serverPkg)
+	serverAst := parseAst(serverPath, serverPkg)
+	twirpAst := parseAst(twirpPath, serverPkg)
 
 	for _, d := range twirpAst.Decls {
 		if it, ok := isInterfaceType(d); ok {
@@ -50,25 +50,12 @@ func isInterfaceType(d dst.Decl) (*dst.InterfaceType, bool) {
 	return it, true
 }
 
-func parseServerAst(path, pkg string) *dst.File {
+func parseAst(path, pkg string) *dst.File {
 	d := decorator.NewDecoratorWithImports(nil, pkg, goast.New())
 	ast, err := d.Parse(readCode(path))
 	if err != nil {
 		panic(err)
 	}
-	return ast
-}
-
-func parseTwirpAst(path string) *dst.File {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
-	ast, err := decorator.Parse(b)
-	if err != nil {
-		panic(err)
-	}
-
 	return ast
 }
 
