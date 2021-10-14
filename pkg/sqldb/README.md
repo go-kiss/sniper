@@ -36,6 +36,8 @@ SQLDB_DSN_mysql1 = "username:password@protocol(address)/dbname?param=value"
 框架会根据配置内容自动识别数据库驱动。
 
 ```go
+import "github.com/go-kiss/sniper/pkg/sqldb"
+
 db := sqldb.Get(ctx, "name")
 db.ExecContext(ctx, "delete from ...")
 ```
@@ -44,7 +46,7 @@ db.ExecContext(ctx, "delete from ...")
 
 sqldb 提供简单的 Insert/Update/StructScan 方法，替换常用的 ORM 使用场景。
 
-所有的 Model 都必须实现 Modler 接口，支持查询所属的表名和主键字段名。
+所有的模型对象都必须实现 `Modler` 接口，支持查询所属的表名和主键字段名。
 
 比如我们定义一个 user 对象：
 
@@ -76,8 +78,8 @@ result, err := db.Update(&u)
 查询对象：
 
 ```go
-var u2 user
-err := db.Get(&u2, "select * from users where id = ?", id)
+var u user
+err := db.Get(&u, "select * from users where id = ?", id)
 ```
 
 ## 现有问题

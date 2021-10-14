@@ -7,8 +7,7 @@ memdb 主要解决以下问题：
 - 上报 opentracing 追踪数据
 - 汇总 prometheus 监控指标
 
-核心思想是用`github.com/ngrok/sqlmw`把现有的`database/sql`驱动包起来，
-拦截所有数据库操作进行观察。
+核心思想是调用`AddHook`添加回调，拦截所有缓存操作进行观察。
 
 ## 配置
 
@@ -22,8 +21,7 @@ memdb 主要解决以下问题：
 MEMDB_DSN_BAR = "redis://name:password@localhost:6379?DB=1"
 ```
 
-除了 hostname 之外，其他参数均为可选。支持的配置所有 int/bool/time.Duration
-类型的配置。
+除了 hostname 之外，支持所有类型为`int/bool/time.Duration`的配置。
 
 配置列表参考官方文档：<https://pkg.go.dev/github.com/go-redis/redis#Options>
 
@@ -33,6 +31,8 @@ MEMDB_DSN_BAR = "redis://name:password@localhost:6379?DB=1"
 返回的是`*redis.Client`对象。
 
 ```go
+import "github.com/go-kiss/sniper/pkg/sqldb"
+
 db := Get("foo")
 db.Set(ctx, "a", "123", 0)
 ```

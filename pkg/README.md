@@ -5,3 +5,9 @@
 ```
 go get github.com/go-kiss/sniper/pkg@latest
 ```
+
+独立使用的时候需要通过导入 pkg 包完成初始化
+
+```go
+import _ "github.com/go-kiss/sniper/pkg"
+```
