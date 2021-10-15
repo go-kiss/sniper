@@ -16,6 +16,7 @@ import (
 
 func serverRegistered(gen *dst.FuncDecl) bool {
 	has := false
+	deleted := map[int]bool{}
 	for i, s := range gen.Body.List {
 		bs, ok := s.(*dst.BlockStmt)
 		if !ok {
@@ -35,10 +36,7 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 		}
 
 		if !hasProto(id) {
-			// 设成 EmptyStmt 表示删除当前 block
-			// 也可以直接操作 gen.Body.List
-			// 但不如直接赋值方便
-			gen.Body.List[i] = &dst.EmptyStmt{Implicit: true}
+			deleted[i] = true
 		}
 
 		if !strings.HasSuffix(id.Path, "/"+server+"/v"+version) {
@@ -51,6 +49,15 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 
 		has = true
 	}
+
+	stmts := []dst.Stmt{}
+	for i, s := range gen.Body.List {
+		if !deleted[i] {
+			stmts = append(stmts, s)
+		}
+	}
+	gen.Body.List = stmts
+
 	return has
 }
 
@@ -91,9 +98,6 @@ func genServerRoute(initMux *dst.FuncDecl) {
 	for _, d := range f.Decls {
 		if fd, ok := d.(*dst.FuncDecl); ok {
 			stmt := fd.Body.List[0].(*dst.BlockStmt)
-			if len(initMux.Body.List) > 0 {
-				stmt.Decs.Start.Replace("\n")
-			}
 			initMux.Body.List = append(initMux.Body.List, stmt)
 			return
 		}
