@@ -42,7 +42,7 @@ var levels = map[string]logrus.Level{
 }
 
 func setLevel() {
-	levelConf := conf.Get("LOG_LEVEL_" + conf.Hostname)
+	levelConf := conf.Get("LOG_LEVEL_" + conf.Host)
 
 	if levelConf == "" {
 		levelConf = conf.Get("LOG_LEVEL")
@@ -59,8 +59,8 @@ func setLevel() {
 func Get(ctx context.Context) Logger {
 	return logrus.WithFields(logrus.Fields{
 		"env":      conf.Env,
-		"app_id":   conf.AppID,
-		"hostname": conf.Hostname,
+		"app":      conf.App,
+		"host":     conf.Host,
 		"trace_id": trace.GetTraceID(ctx),
 	})
 }

@@ -3,7 +3,6 @@ package hooks
 import (
 	"context"
 
-	"github.com/go-kiss/sniper/pkg/conf"
 	"github.com/go-kiss/sniper/pkg/log"
 	"github.com/go-kiss/sniper/pkg/trace"
 	"github.com/go-kiss/sniper/pkg/twirp"
@@ -51,12 +50,6 @@ var Log = &twirp.ServerHooks{
 		// 新版本采用json/protobuf形式，公共参数需要读取query
 		if len(form) == 0 {
 			form = hreq.URL.Query()
-		}
-		// 移除日志中的敏感信息
-		if conf.IsProdEnv {
-			form.Del("access_key")
-			form.Del("appkey")
-			form.Del("sign")
 		}
 
 		log.Get(ctx).WithFields(log.Fields{
