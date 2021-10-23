@@ -104,6 +104,21 @@ func TestModel(t *testing.T) {
 	if u2.Name != "bar" || u2.Age != 18 || !u2.Created.Equal(now) {
 		t.Fatal("invalid user", u2)
 	}
+	u3 := *u1
+	u3.ID = 10
+	_, err = db.Insert(&u3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var u4 user
+	err = db.Get(&u4, "select * from users where id = ?", u3.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u4.ID != u3.ID {
+		t.Fatal("invalid user", u4)
+	}
 }
 
 func TestName(t *testing.T) {

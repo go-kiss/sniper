@@ -104,16 +104,21 @@ func insert(ctx context.Context, db mapExecer, m Modeler) (sql.Result, error) {
 	}
 
 	marks := ""
-	var k int
+	k := -1
 	for i := 0; i < len(names); i++ {
 		if names[i] == m.KeyName() {
-			args = append(args[:i], args[i+1:]...)
-			k = i
-			continue
+			v := reflect.ValueOf(args[i])
+			if v.IsZero() {
+				k = i
+				args = append(args[:i], args[i+1:]...)
+				continue
+			}
 		}
 		marks += "?,"
 	}
-	names = append(names[:k], names[k+1:]...)
+	if k >= 0 {
+		names = append(names[:k], names[k+1:]...)
+	}
 	marks = marks[:len(marks)-1]
 	query := "INSERT INTO " + m.TableName() + "(" + strings.Join(names, ",") + ") VALUES (" + marks + ")"
 	query = db.Rebind(query)
