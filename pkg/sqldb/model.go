@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/jmoiron/sqlx/reflectx"
@@ -154,6 +155,7 @@ func bindModeler(arg interface{}, m *reflectx.Mapper) ([]string, []interface{}, 
 	for k := range m.TypeMap(t).Names {
 		names = append(names, k)
 	}
+	sort.Stable(sort.StringSlice(names))
 	args, err := bindArgs(names, arg, m)
 	if err != nil {
 		return nil, nil, err
