@@ -164,6 +164,14 @@ sniper 提供的脚手架可以自动生成 proto 模版、server 模版，并�
 ```bash
 go run cmd/sniper/main.go rpc --server=foo --service=echo
 ```
+[命令属性](../cmd/sniper/rpc/cmd.go)
+```bash 
+--root      根目录
+--package   项目总包名
+--server    服务包名
+--service   子服务名
+--version   服务版本(default:1)
+```
 会自动生成：
 ```
 rpc
