@@ -54,7 +54,6 @@ https://github.com/go-kiss/sniper
 		}
 
 		run("go", "install", "google.golang.org/protobuf/cmd/protoc-gen-go@latest")
-		// run("go", "install", "github.com/go-kiss/sniper/cmd/protoc-gen-twirp@latest")
 
 		parts := strings.Split(pkg, "/")
 		path := parts[len(parts)-1]

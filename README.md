@@ -42,7 +42,7 @@ sniper new --pkg helloworld
 CONF_PATH=`pwd` go run main.go http
 ```
 
-使用[httpie](https://httpie.io)调用示例接口：
+使用 [httpie](https://httpie.io) 调用示例接口：
 
 ```bash
 http :8080/api/foo.v1.Bar/Echo msg=hello

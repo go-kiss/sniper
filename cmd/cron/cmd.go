@@ -236,8 +236,3 @@ func regjob(name string, spec string, job func(ctx context.Context) error, tasks
 	ji = &jobInfo{Name: name, Spec: spec, job: j, Tasks: tasks}
 	return
 }
-
-// 已废弃，请使用 cron 或 manual
-func addJob(name string, spec string, job func(ctx context.Context) error) {
-	cron(name, spec, job)
-}
