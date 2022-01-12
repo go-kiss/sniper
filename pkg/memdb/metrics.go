@@ -36,10 +36,9 @@ const (
 	subsystem = "memdb_connections"
 )
 
-// NewStatsCollector creates a new StatsCollector.
-func NewStatsCollector(dbName string, db redis.UniversalClient) *StatsCollector {
+func registerStats(dbName string, db redis.UniversalClient) {
 	labels := prometheus.Labels{"db_name": dbName}
-	return &StatsCollector{
+	s := &StatsCollector{
 		db: db,
 		hitDesc: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, subsystem, "hit"),
@@ -78,6 +77,9 @@ func NewStatsCollector(dbName string, db redis.UniversalClient) *StatsCollector 
 			labels,
 		),
 	}
+
+	prometheus.MustRegister(s)
+	return
 }
 
 // Describe implements the prometheus.Collector interface.

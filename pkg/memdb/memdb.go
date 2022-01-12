@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-kiss/sniper/pkg/conf"
 	"github.com/go-redis/redis/v8"
-	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -45,8 +44,7 @@ func Get(name string) *Client {
 
 		rdb.AddHook(observer{name: name})
 
-		collector := NewStatsCollector(name, rdb)
-		prometheus.MustRegister(collector)
+		registerStats(name, rdb)
 
 		db := &Client{rdb}
 
