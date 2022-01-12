@@ -3,12 +3,16 @@ package conf
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )
+
+// Get 查询配置/环境变量
+var Get func(string) string
 
 var (
 	// Host 主机名
@@ -62,7 +66,7 @@ func init() {
 		}
 
 		v := viper.New()
-		v.SetConfigFile(path + "/" + f.Name())
+		v.SetConfigFile(filepath.Join(path, f.Name()))
 		if err := v.ReadInConfig(); err != nil {
 			panic(err)
 		}
@@ -71,6 +75,8 @@ func init() {
 		name := strings.TrimSuffix(f.Name(), ".toml")
 		files[name] = &Conf{v}
 	}
+
+	Get = GetString
 }
 
 type Conf struct {
@@ -102,7 +108,6 @@ func WatchConfig() {
 // Set 设置配置，仅用于测试
 func Set(key string, value interface{}) { File(defaultFile).Set(key, value) }
 
-func Get(key string) string                { return File(defaultFile).GetString(key) }
 func GetBool(key string) bool              { return File(defaultFile).GetBool(key) }
 func GetDuration(key string) time.Duration { return File(defaultFile).GetDuration(key) }
 func GetFloat64(key string) float64        { return File(defaultFile).GetFloat64(key) }

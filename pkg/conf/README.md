@@ -19,3 +19,6 @@ a := conf.Get("LOG_LEVEL")
 
 b := conf.File("foo").GetInt32("WORKER_NUM")
 ```
+
+Sniper 的 memdb/sqldb 等组件依赖 conf 组件。如果不想通过文件的方式加载配置，
+则可以覆盖`conf.Get`方法实现新的配置加载逻辑。
