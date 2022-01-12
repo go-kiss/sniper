@@ -7,6 +7,7 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/spf13/cobra v1.2.1
 	golang.org/x/mod v0.5.1
+	google.golang.org/protobuf v1.26.0
 )
 
 require (

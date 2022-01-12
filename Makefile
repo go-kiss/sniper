@@ -38,7 +38,10 @@ PKG_PBGENS := $(PKG_PROTOS:.proto=.pb.go)
 				)\
 			)\
 		))
-	protoc --twirp_out=M$m:. --go_out=M$m:. $<
+	protoc --plugin=protoc-gen-twirp=$(shell which sniper) \
+		--twirp_out=M$m:. \
+		--go_out=M$m:. \
+		$<
 
 default: rpc pkg
 	go build -trimpath -mod=readonly
