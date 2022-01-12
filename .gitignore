@@ -2,7 +2,7 @@
 /.idea
 /coverage.out
 /sniper
-rpc/**/*.md
-rpc/**/*.pb.go
-rpc/**/*.twirp.go
-rpc/**/*.validate.go
+/rpc/**/*.md
+/rpc/**/*.pb.go
+/rpc/**/*.twirp.go
+/rpc/**/*.validate.go
