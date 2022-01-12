@@ -13,7 +13,7 @@ var pkg, branch string
 
 func init() {
 	Cmd.Flags().StringVar(&pkg, "pkg", "sniper", "项目包名")
-	Cmd.Flags().StringVar(&branch, "branch", "", "项目远程分支名")
+	Cmd.Flags().StringVar(&branch, "branch", "master", "项目远程分支名")
 
 	Cmd.MarkFlagRequired("pkg")
 }
