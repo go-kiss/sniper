@@ -12,8 +12,8 @@ import (
 var pkg, branch string
 
 func init() {
-	Cmd.Flags().StringVar(&pkg, "pkg", "sniper", "项目包名")
-	Cmd.Flags().StringVar(&branch, "branch", "master", "项目远程分支名")
+	Cmd.Flags().StringVar(&pkg, "pkg", "", "项目包名")
+	Cmd.Flags().StringVar(&branch, "branch", "master", "项目模板分支")
 
 	Cmd.MarkFlagRequired("pkg")
 }
@@ -71,7 +71,7 @@ https://github.com/go-kiss/sniper
 		color.Cyan("rename sniper to " + pkg)
 		replace("go.mod", "module sniper", "module "+pkg, 1)
 		for _, p := range []string{"main.go", "cmd/http/http.go"} {
-			replace(p, `"sniper/`, `"`+pkg+`/`, -1)
+			replace(p, `"sniper`, `"`+pkg, -1)
 		}
 
 		color.Cyan("register foo service")
