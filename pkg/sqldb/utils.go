@@ -15,9 +15,9 @@ func values(args []driver.NamedValue) []driver.Value {
 }
 
 var sqlreg = regexp.MustCompile(`(?i)` +
-	`(?P<cmd>select)\s+.+?from\s+(?P<table>\w+)\s+|` +
+	`(?P<cmd>select)\s+.+?from\s+(?P<table>\w+)\s*|` +
 	`(?P<cmd>update)\s+(?P<table>\w+)\s+|` +
-	`(?P<cmd>delete)\s+from\s+(?P<table>\w+)\s+|` +
+	`(?P<cmd>delete)\s+from\s+(?P<table>\w+)\s*|` +
 	`(?P<cmd>insert)\s+into\s+(?P<table>\w+)`)
 
 // 提取 sql 的表名和指令
