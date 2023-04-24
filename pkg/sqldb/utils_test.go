@@ -8,6 +8,8 @@ func TestParseSQL(t *testing.T) {
 		{"update foo set", "foo", "update"},
 		{"insert into foo value", "foo", "insert"},
 		{"DELETE from foo where", "foo", "delete"},
+		{"select * from foo", "foo", "select"},
+		{"DELETE from foo", "foo", "delete"},
 	}
 
 	for _, c := range cases {
