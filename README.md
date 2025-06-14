@@ -67,3 +67,7 @@ X-Trace-Id: 08c408b0a4cd12c0
 Sniper 框架几乎每一个目录下都有 README.md 文件，建议仔细阅读。
 
 如需了解 Sniper 框架的工作原理和设计原则，请移步我的[博客](https://taoshu.in/go/sniper.html)。
+
+## 赞助商
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
