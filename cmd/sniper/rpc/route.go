@@ -3,15 +3,13 @@ package rpc
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"os"
-	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/dave/dst/decorator/resolver/goast"
-	"github.com/dave/dst/decorator/resolver/simple"
 )
 
 func serverRegistered(gen *dst.FuncDecl) bool {
@@ -89,8 +87,7 @@ func genServerRoute(initMux *dst.FuncDecl) {
 		panic(err)
 	}
 
-	d := decorator.NewDecoratorWithImports(nil, "http", goast.New())
-	f, err := d.Parse(buf)
+	f, err := decorator.Parse(buf)
 	if err != nil {
 		panic(err)
 	}
@@ -110,8 +107,7 @@ func registerServer() {
 	if err != nil {
 		panic(err)
 	}
-	d := decorator.NewDecoratorWithImports(nil, "http", goast.New())
-	routeAst, err := d.Parse(b)
+	routeAst, err := decorator.Parse(b)
 	if err != nil {
 		panic(err)
 	}
@@ -132,23 +128,48 @@ func registerServer() {
 	defer f.Close()
 
 	alias := server + "_v" + version
-	path := fmt.Sprintf(`%s/rpc/%s/v%s`, module(), server, version)
-	rr := simple.RestorerResolver{path: alias}
-	for _, i := range routeAst.Imports {
-		alias := ""
-		path, _ := strconv.Unquote(i.Path.Value)
-		if i.Name != nil {
-			alias = i.Name.Name
-		} else {
-			parts := strings.Split(path, "/")
-			alias = parts[len(parts)-1]
+	path := fmt.Sprintf(`"%s/rpc/%s/v%s"`, module(), server, version)
+
+	for _, d := range routeAst.Decls {
+		gd, ok := d.(*dst.GenDecl)
+		if !ok || gd.Tok != token.IMPORT {
+			continue
 		}
-		rr[path] = alias
+
+		var n int
+		var is dst.ImportSpec
+		// 找到倒数第一个 rpc 导入
+		for i := len(gd.Specs) - 1; i >= 0; i-- {
+			s := gd.Specs[i].(*dst.ImportSpec)
+			if strings.HasPrefix(s.Path.Value, "\""+module()) {
+				// 确保没有重复导入
+				for j := i; j >= 0; j-- {
+					s := gd.Specs[j].(*dst.ImportSpec)
+					if s.Path.Value == path {
+						goto output
+					}
+				}
+				// 未导入，准备构造 ImportSepc
+				is = *s
+				n = i
+				break
+			}
+		}
+
+		is.Name = dst.NewIdent(alias)
+		is.Path = &dst.BasicLit{Kind: token.STRING, Value: path}
+
+		// 将新的 import 语句插入到 n 指向位置后面
+		ss := make([]dst.Spec, 0, len(gd.Specs)+1)
+		ss = append(ss, gd.Specs[:n+1]...)
+		ss = append(ss, &is)
+		ss = append(ss, gd.Specs[n+1:]...)
+		gd.Specs = ss
+		break
 	}
-	r := decorator.NewRestorerWithImports("http", rr)
-	fr := r.FileRestorer()
-	fr.Alias[path] = alias
-	if err := fr.Fprint(f, routeAst); err != nil {
+
+output:
+	if err := decorator.Fprint(f, routeAst); err != nil {
 		panic(err)
 	}
 }
