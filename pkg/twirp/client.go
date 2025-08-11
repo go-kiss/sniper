@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -61,7 +60,7 @@ func DoProtobufRequest(ctx context.Context, client HTTPClient, url string, in, o
 		return errorFromResponse(resp)
 	}
 
-	respBodyBytes, err := ioutil.ReadAll(resp.Body)
+	respBodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return clientError("failed to read response body", err)
 	}
@@ -113,7 +112,7 @@ func DoJSONRequest(ctx context.Context, client HTTPClient, url string, in, out p
 	}
 
 	unmarshaler := protojson.UnmarshalOptions{}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return clientError("failed to read response body", err)
 	}
@@ -195,7 +194,7 @@ func errorFromResponse(resp *http.Response) Error {
 		return twirpErrorFromIntermediary(statusCode, msg, location)
 	}
 
-	respBodyBytes, err := ioutil.ReadAll(resp.Body)
+	respBodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return clientError("failed to read server error response body", err)
 	}
