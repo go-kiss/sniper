@@ -21,7 +21,7 @@ func ServerHooks(server any) *twirp.ServerHooks {
 		return nil
 	}
 
-	serverHooks := hooks[""]
+	serverHooks := hooks["*"]
 
 	return &twirp.ServerHooks{
 		RequestReceived: func(ctx context.Context) (context.Context, error) {

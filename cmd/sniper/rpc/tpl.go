@@ -30,7 +30,7 @@ type {{.Service}}Server struct{}
 // 如果设定了 method 的 hooks，则不再执行 server 一级的 hooks
 func (s *{{.Service}}Server) Hooks() map[string]*twirp.ServerHooks {
 	return map[string]*twirp.ServerHooks {
-		// "": nil, // Server 一级 hooks
+		// "*": nil, // Server 一级 hooks，适用于所有方法
 		// "Echo": nil, // Echo 方法的 hooks
 	}
 }
