@@ -2,12 +2,10 @@
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
 RPC_PROTOS := $(call rwildcard,rpc/,*.proto)
-PKG_PROTOS := $(call rwildcard,pkg/,*.proto)
 
 RPC_PBGENS := $(RPC_PROTOS:.proto=.twirp.go)
-PKG_PBGENS := $(PKG_PROTOS:.proto=.pb.go)
 
-.PRECIOUS: $(RPC_PBGENS) $(PKG_PBGENS)
+.PRECIOUS: $(RPC_PBGENS)
 
 # 参数 Mfoo.proto=bar/foo 表示 foo.proto 生成的 go 文件所对应的包名是 bar/foo。
 #
@@ -43,13 +41,10 @@ PKG_PBGENS := $(PKG_PROTOS:.proto=.pb.go)
 		--go_out=M$m:. \
 		$<
 
-default: rpc pkg
+default: rpc
 	go build -trimpath -mod=readonly
 
 rpc: $(RPC_PBGENS)
-	@exit
-
-pkg: $(PKG_PBGENS)
 	@exit
 
 clean:
