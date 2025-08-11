@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -86,28 +85,14 @@ func startSpan(r *http.Request) (*http.Request, opentracing.Span) {
 
 func (s panicHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r, span := startSpan(r)
+	defer span.Finish()
 
 	defer func() {
 		if rec := recover(); rec != nil {
 			ctx := r.Context()
 			log.Get(ctx).Error(rec, string(debug.Stack()))
 		}
-		span.Finish()
 	}()
-
-	origin := r.Header.Get("Origin")
-	suffix := conf.Get("CORS_ORIGIN_SUFFIX")
-
-	if origin != "" && suffix != "" && strings.HasSuffix(origin, suffix) {
-		w.Header().Add("Access-Control-Allow-Origin", origin)
-		w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "Origin,No-Cache,X-Requested-With,If-Modified-Since,Pragma,Last-Modified,Cache-Control,Expires,Content-Type,Access-Control-Allow-Credentials,DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Cache-Webcdn,Content-Length")
-	}
-
-	if r.Method == http.MethodOptions {
-		return
-	}
 
 	s.handler.ServeHTTP(w, r)
 }
