@@ -10,7 +10,7 @@ type ServerHooker interface {
 	Hooks() map[string]*twirp.ServerHooks
 }
 
-func ServerHooks(server interface{}) *twirp.ServerHooks {
+func ServerHooks(server any) *twirp.ServerHooks {
 	hooker, ok := server.(ServerHooker)
 	if !ok {
 		return nil

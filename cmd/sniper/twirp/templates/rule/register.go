@@ -84,7 +84,7 @@ type Rule struct {
 
 // RegisterFunctions 注册方法
 func RegisterFunctions(tpl *template.Template) {
-	tpl.Funcs(map[string]interface{}{
+	tpl.Funcs(map[string]any{
 		"msgTyp":    msgTyp,
 		"errname":   errName,
 		"pkg":       pkgName,
@@ -223,7 +223,7 @@ func messagefunc(field protogen.Field) (str string) {
 	}
 
 	str = `
-		if v, ok := interface{}(` + accessor(field) + `).(interface{ validate() error }); ok {
+		if v, ok := any(` + accessor(field) + `).(interface{ validate() error }); ok {
 			if err := v.validate(); err != nil {
 				return ` + field.Parent.GoIdent.GoName + `ValidationError {
 					field:  "` + field.GoName + `",
@@ -236,7 +236,7 @@ func messagefunc(field protogen.Field) (str string) {
 	if field.Desc.IsList() {
 		str = `
 	for _, item := range ` + accessor(field) + ` {
-		if v, ok := interface{}(item).(interface{ validate() error }); ok {
+		if v, ok := any(item).(interface{ validate() error }); ok {
 			if err := v.validate(); err != nil {
 				return ` + field.Parent.GoIdent.GoName + `ValidationError {
 					field:  "` + field.GoName + `",

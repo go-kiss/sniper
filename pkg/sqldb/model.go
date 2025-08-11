@@ -25,7 +25,7 @@ type mapExecer interface {
 	DriverName() string
 	GetMapper() *reflectx.Mapper
 	Rebind(string) string
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
 // MustBegin 封装 sqlx.DB.MustBegin，返回自定义的 *Tx
@@ -133,7 +133,7 @@ func update(ctx context.Context, db mapExecer, m Modeler) (sql.Result, error) {
 	}
 
 	query := "UPDATE " + m.TableName() + " set "
-	var id interface{}
+	var id any
 	for i := 0; i < len(names); i++ {
 		name := names[i]
 		if name == m.KeyName() {
@@ -149,7 +149,7 @@ func update(ctx context.Context, db mapExecer, m Modeler) (sql.Result, error) {
 	return db.ExecContext(ctx, query, args...)
 }
 
-func bindModeler(arg interface{}, m *reflectx.Mapper) ([]string, []interface{}, error) {
+func bindModeler(arg any, m *reflectx.Mapper) ([]string, []any, error) {
 	t := reflect.TypeOf(arg)
 	names := []string{}
 	for k := range m.TypeMap(t).Names {
@@ -164,8 +164,8 @@ func bindModeler(arg interface{}, m *reflectx.Mapper) ([]string, []interface{}, 
 	return names, args, nil
 }
 
-func bindArgs(names []string, arg interface{}, m *reflectx.Mapper) ([]interface{}, error) {
-	arglist := make([]interface{}, 0, len(names))
+func bindArgs(names []string, arg any, m *reflectx.Mapper) ([]any, error) {
+	arglist := make([]any, 0, len(names))
 
 	// grab the indirected value of arg
 	v := reflect.ValueOf(arg)

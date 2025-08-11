@@ -106,7 +106,7 @@ func WatchConfig() {
 }
 
 // Set 设置配置，仅用于测试
-func Set(key string, value interface{}) { File(defaultFile).Set(key, value) }
+func Set(key string, value any) { File(defaultFile).Set(key, value) }
 
 func GetBool(key string) bool              { return File(defaultFile).GetBool(key) }
 func GetDuration(key string) time.Duration { return File(defaultFile).GetDuration(key) }
@@ -123,7 +123,7 @@ func GetUint(key string) uint              { return File(defaultFile).GetUint(ke
 func GetUint32(key string) uint32          { return File(defaultFile).GetUint32(key) }
 func GetUint64(key string) uint64          { return File(defaultFile).GetUint64(key) }
 
-func GetStringMap(key string) map[string]interface{} { return File(defaultFile).GetStringMap(key) }
+func GetStringMap(key string) map[string]any { return File(defaultFile).GetStringMap(key) }
 func GetStringMapString(key string) map[string]string {
 	return File(defaultFile).GetStringMapString(key)
 }

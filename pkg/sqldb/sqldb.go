@@ -48,7 +48,7 @@ func Get(ctx context.Context, name string) *DB {
 	}
 	rwl.RUnlock()
 
-	v, _, _ := sfg.Do(name, func() (interface{}, error) {
+	v, _, _ := sfg.Do(name, func() (any, error) {
 		dsn := conf.Get("SQLDB_DSN_" + name)
 		isSqlite := strings.HasPrefix(dsn, "file:") || dsn == ":memory:"
 		var driverName string

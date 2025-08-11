@@ -34,7 +34,7 @@ func Get(name string) *Client {
 	}
 	rwl.RUnlock()
 
-	v, _, _ := sfg.Do(name, func() (interface{}, error) {
+	v, _, _ := sfg.Do(name, func() (any, error) {
 		opts := &redis.UniversalOptions{}
 
 		dsn := conf.Get("MEMDB_DSN_" + name)

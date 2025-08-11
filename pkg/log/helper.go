@@ -2,58 +2,58 @@ package log
 
 import "context"
 
-func Trace(ctx context.Context, args ...interface{}) {
+func Trace(ctx context.Context, args ...any) {
 	Get(ctx).Trace(args...)
 }
 
-func Debug(ctx context.Context, args ...interface{}) {
+func Debug(ctx context.Context, args ...any) {
 	Get(ctx).Debug(args...)
 }
 
-func Info(ctx context.Context, args ...interface{}) {
+func Info(ctx context.Context, args ...any) {
 	Get(ctx).Info(args...)
 }
 
-func Warn(ctx context.Context, args ...interface{}) {
+func Warn(ctx context.Context, args ...any) {
 	Get(ctx).Warn(args...)
 }
 
-func Error(ctx context.Context, args ...interface{}) {
+func Error(ctx context.Context, args ...any) {
 	Get(ctx).Error(args...)
 }
 
-func Fatal(ctx context.Context, args ...interface{}) {
+func Fatal(ctx context.Context, args ...any) {
 	Get(ctx).Fatal(args...)
 }
 
-func Panic(ctx context.Context, args ...interface{}) {
+func Panic(ctx context.Context, args ...any) {
 	Get(ctx).Panic(args...)
 }
 
-func Tracef(ctx context.Context, format string, args ...interface{}) {
+func Tracef(ctx context.Context, format string, args ...any) {
 	Get(ctx).Tracef(format, args...)
 }
 
-func Debugf(ctx context.Context, format string, args ...interface{}) {
+func Debugf(ctx context.Context, format string, args ...any) {
 	Get(ctx).Debugf(format, args...)
 }
 
-func Infof(ctx context.Context, format string, args ...interface{}) {
+func Infof(ctx context.Context, format string, args ...any) {
 	Get(ctx).Infof(format, args...)
 }
 
-func Warnf(ctx context.Context, format string, args ...interface{}) {
+func Warnf(ctx context.Context, format string, args ...any) {
 	Get(ctx).Warnf(format, args...)
 }
 
-func Errorf(ctx context.Context, format string, args ...interface{}) {
+func Errorf(ctx context.Context, format string, args ...any) {
 	Get(ctx).Errorf(format, args...)
 }
 
-func Fatalf(ctx context.Context, format string, args ...interface{}) {
+func Fatalf(ctx context.Context, format string, args ...any) {
 	Get(ctx).Fatalf(format, args...)
 }
 
-func Panicf(ctx context.Context, format string, args ...interface{}) {
+func Panicf(ctx context.Context, format string, args ...any) {
 	Get(ctx).Panicf(format, args...)
 }

@@ -71,6 +71,6 @@ func Reset() {
 }
 
 // PP 类似 PHP 的 var_dump
-func PP(args ...interface{}) {
+func PP(args ...any) {
 	pp.Println(args...)
 }
