@@ -64,6 +64,11 @@ https://github.com/go-kiss/sniper
 			panic(err)
 		}
 
+		run("rm", "-rf", ".git", "cmd/sniper", "pkg", "LICENSE", "README.md")
+		run("sed", "-i", "", `/\/sniper\/pkg/d`, "go.mod")
+		run("go", "get", "github.com/go-kiss/sniper/pkg@latest")
+		run("go", "mod", "tidy")
+
 		if pkg == "sniper" {
 			return
 		}
@@ -80,7 +85,7 @@ https://github.com/go-kiss/sniper
 		color.Cyan("you can run service by")
 		color.Yellow("CONF_PATH=`pwd` go run main.go http")
 		color.Cyan("you can use the httpie to call api by")
-		color.Yellow("http :8080/api/foo.v1.Bar/Echo msg=hello")
+		color.Yellow("http :8080/foo.v1.Bar/Echo msg=hello")
 	},
 }
 

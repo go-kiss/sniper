@@ -30,8 +30,8 @@ func isSniperDir() bool {
 	}
 
 	// 检查 sniper 项目目录结构
-	// sniper 项目依赖 cmd/pkg/rpc 三个目录
-	sniperDirs := map[string]bool{"cmd": true, "pkg": true, "rpc": true}
+	// sniper 项目依赖 cmd/svc/rpc 三个目录
+	sniperDirs := map[string]bool{"cmd": true, "svc": true, "rpc": true}
 
 	c := 0
 	for _, d := range dirs {
