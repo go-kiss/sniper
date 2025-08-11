@@ -45,7 +45,7 @@ CONF_PATH=`pwd` go run main.go http
 使用 [httpie](https://httpie.io) 调用示例接口：
 
 ```bash
-http :8080/api/foo.v1.Bar/Echo msg=hello
+http :8080/foo.v1.Bar/Echo msg=hello
 ```
 
 应该会收到如下响应内容：

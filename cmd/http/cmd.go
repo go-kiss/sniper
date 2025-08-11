@@ -137,7 +137,7 @@ func startServer() {
 
 	handler = panicHandler{handler: mux}
 
-	if prefix := conf.Get("RPC_PREFIX"); prefix != "" && prefix != "/" {
+	if prefix := conf.Get("RPC_PREFIX"); prefix != "" {
 		handler = http.StripPrefix(prefix, handler)
 	}
 
