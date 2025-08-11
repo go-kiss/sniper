@@ -1,22 +1,23 @@
 module github.com/go-kiss/sniper/cmd/sniper
 
-go 1.17
+go 1.23.0
+
+toolchain go1.24.6
 
 require (
-	github.com/dave/dst v0.26.2
-	github.com/fatih/color v1.13.0
-	github.com/spf13/cobra v1.2.1
-	golang.org/x/mod v0.5.1
-	google.golang.org/protobuf v1.26.0
+	github.com/dave/dst v0.27.3
+	github.com/fatih/color v1.18.0
+	github.com/spf13/cobra v1.9.1
+	golang.org/x/mod v0.27.0
+	google.golang.org/protobuf v1.36.7
 )
 
 require (
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/mattn/go-colorable v0.1.9 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
-	golang.org/x/tools v0.1.2 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 )
