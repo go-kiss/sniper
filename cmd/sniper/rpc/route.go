@@ -12,9 +12,10 @@ import (
 	"github.com/dave/dst/decorator"
 )
 
-func serverRegistered(gen *dst.FuncDecl) bool {
+func serverRegistered(gen *dst.FuncDecl, imports *dst.GenDecl) bool {
 	has := false
 	deleted := map[int]bool{}
+	servers := map[string]bool{}
 	for i, s := range gen.Body.List {
 		bs, ok := s.(*dst.BlockStmt)
 		if !ok {
@@ -28,6 +29,8 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 
 		if !hasProto(s) {
 			deleted[i] = true
+		} else {
+			servers[s.X.(*dst.Ident).Name] = true
 		}
 
 		if !strings.HasSuffix(s.X.(*dst.Ident).Name, server+"_v"+version) {
@@ -49,6 +52,19 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 	}
 	gen.Body.List = stmts
 
+	specs := []dst.Spec{}
+	for _, s := range imports.Specs {
+		i := s.(*dst.ImportSpec)
+		if strings.HasPrefix(i.Path.Value, `"`+module()+"/rpc") {
+			if !servers[i.Name.Name] {
+				continue
+			}
+		}
+		specs = append(specs, s)
+	}
+
+	imports.Specs = specs
+
 	return has
 }
 
@@ -60,8 +76,8 @@ func hasProto(id *dst.SelectorExpr) bool {
 	return fileExists(proto)
 }
 
-func genServerRoute(initMux *dst.FuncDecl) {
-	if serverRegistered(initMux) {
+func genServerRoute(initMux *dst.FuncDecl, imports *dst.GenDecl) {
+	if serverRegistered(initMux, imports) {
 		return
 	}
 
@@ -118,7 +134,7 @@ func registerServer() {
 	for _, decl := range routeAst.Decls {
 		f, ok := decl.(*dst.FuncDecl)
 		if ok && f.Name.Name == "initMux" {
-			genServerRoute(f)
+			genServerRoute(f, imports)
 			break
 		}
 	}
