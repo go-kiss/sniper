@@ -21,27 +21,20 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 			continue
 		}
 		// 提取 s := &foo_v1.FooServer{} 的 foo_v1.FooServer
-		// 保存到 id 变量
-		ue, ok := bs.List[0].(*dst.AssignStmt).Rhs[0].(*dst.UnaryExpr)
-		if !ok {
-			continue
-		}
-		// id.Name 保存 FooServer
-		// id.Path 保存 sniper/rpc/bar/v1
-		id, ok := ue.X.(*dst.CompositeLit).Type.(*dst.Ident)
-		if !ok {
-			continue
-		}
+		ue := bs.List[0].(*dst.AssignStmt).Rhs[0].(*dst.UnaryExpr)
+		// s.X 保存 foo_v1
+		// s.Sel 保存 FooServer
+		s := ue.X.(*dst.CompositeLit).Type.(*dst.SelectorExpr)
 
-		if !hasProto(id) {
+		if !hasProto(s) {
 			deleted[i] = true
 		}
 
-		if !strings.HasSuffix(id.Path, "/"+server+"/v"+version) {
+		if !strings.HasSuffix(s.X.(*dst.Ident).Name, server+"_v"+version) {
 			continue
 		}
 
-		if id.Name != upper1st(service)+"Server" {
+		if s.Sel.Name != upper1st(service)+"Server" {
 			continue
 		}
 
@@ -59,10 +52,10 @@ func serverRegistered(gen *dst.FuncDecl) bool {
 	return has
 }
 
-func hasProto(id *dst.Ident) bool {
-	parts := strings.Split(id.Path, "/")
-	proto := strings.ToLower(id.Name[:len(id.Name)-6]) + ".proto"
-	proto = strings.Join(parts[1:], "/") + "/" + proto
+func hasProto(id *dst.SelectorExpr) bool {
+	parts := strings.Split(id.X.(*dst.Ident).Name, "_")
+	proto := strings.ToLower(id.Sel.Name[:len(id.Sel.Name)-6]) + ".proto"
+	proto = "rpc/" + strings.Join(parts, "/") + "/" + proto
 
 	return fileExists(proto)
 }
