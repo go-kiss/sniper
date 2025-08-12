@@ -105,6 +105,15 @@ func registerServer() {
 		panic(err)
 	}
 
+	var imports *dst.GenDecl
+	for _, d := range routeAst.Decls {
+		gd, ok := d.(*dst.GenDecl)
+		if ok && gd.Tok == token.IMPORT {
+			imports = gd
+			break
+		}
+	}
+
 	// 处理注册路由
 	for _, decl := range routeAst.Decls {
 		f, ok := decl.(*dst.FuncDecl)
@@ -123,46 +132,41 @@ func registerServer() {
 	alias := server + "_v" + version
 	path := fmt.Sprintf(`"%s/rpc/%s/v%s"`, module(), server, version)
 
-	for _, d := range routeAst.Decls {
-		gd, ok := d.(*dst.GenDecl)
-		if !ok || gd.Tok != token.IMPORT {
-			continue
-		}
+	addImport(imports, alias, path)
 
-		var n int
-		var is dst.ImportSpec
-		// 找到倒数第一个 rpc 导入
-		for i := len(gd.Specs) - 1; i >= 0; i-- {
-			s := gd.Specs[i].(*dst.ImportSpec)
-			if strings.HasPrefix(s.Path.Value, "\""+module()) {
-				// 确保没有重复导入
-				for j := i; j >= 0; j-- {
-					s := gd.Specs[j].(*dst.ImportSpec)
-					if s.Path.Value == path {
-						goto output
-					}
-				}
-				// 未导入，准备构造 ImportSepc
-				is = *s
-				n = i
-				break
-			}
-		}
-
-		is.Name = dst.NewIdent(alias)
-		is.Path = &dst.BasicLit{Kind: token.STRING, Value: path}
-
-		// 将新的 import 语句插入到 n 指向位置后面
-		ss := make([]dst.Spec, 0, len(gd.Specs)+1)
-		ss = append(ss, gd.Specs[:n+1]...)
-		ss = append(ss, &is)
-		ss = append(ss, gd.Specs[n+1:]...)
-		gd.Specs = ss
-		break
-	}
-
-output:
 	if err := decorator.Fprint(f, routeAst); err != nil {
 		panic(err)
 	}
+}
+
+func addImport(imports *dst.GenDecl, alias, path string) {
+	var n int
+	var is dst.ImportSpec
+	// 找到倒数第一个 rpc 导入
+	for i := len(imports.Specs) - 1; i >= 0; i-- {
+		s := imports.Specs[i].(*dst.ImportSpec)
+		if strings.HasPrefix(s.Path.Value, "\""+module()) {
+			// 确保没有重复导入
+			for j := i; j >= 0; j-- {
+				s := imports.Specs[j].(*dst.ImportSpec)
+				if s.Path.Value == path {
+					return
+				}
+			}
+			// 未导入，准备构造 ImportSepc
+			is = *s
+			n = i
+			break
+		}
+	}
+
+	is.Name = dst.NewIdent(alias)
+	is.Path = &dst.BasicLit{Kind: token.STRING, Value: path}
+
+	// 将新的 import 语句插入到 n 指向位置后面
+	ss := make([]dst.Spec, 0, len(imports.Specs)+1)
+	ss = append(ss, imports.Specs[:n+1]...)
+	ss = append(ss, &is)
+	ss = append(ss, imports.Specs[n+1:]...)
+	imports.Specs = ss
 }
