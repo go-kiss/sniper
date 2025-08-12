@@ -17,6 +17,8 @@ type observer struct {
 	name string
 }
 
+var _ sqlmw.Interceptor = observer{}
+
 func (o observer) ConnExecContext(ctx context.Context,
 	conn driver.ExecerContext,
 	query string, args []driver.NamedValue) (driver.Result, error) {
@@ -47,7 +49,7 @@ func (o observer) ConnExecContext(ctx context.Context,
 
 func (o observer) ConnQueryContext(ctx context.Context,
 	conn driver.QueryerContext,
-	query string, args []driver.NamedValue) (driver.Rows, error) {
+	query string, args []driver.NamedValue) (context.Context, driver.Rows, error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Query")
 	defer span.Finish()
@@ -70,12 +72,12 @@ func (o observer) ConnQueryContext(ctx context.Context,
 		cmd,
 	).Observe(d.Seconds())
 
-	return rows, err
+	return ctx, rows, err
 }
 
 func (o observer) ConnPrepareContext(ctx context.Context,
 	conn driver.ConnPrepareContext,
-	query string) (driver.Stmt, error) {
+	query string) (context.Context, driver.Stmt, error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Prepare")
 	defer span.Finish()
@@ -98,7 +100,7 @@ func (o observer) ConnPrepareContext(ctx context.Context,
 		"prepare",
 	).Observe(d.Seconds())
 
-	return stmt, err
+	return ctx, stmt, err
 }
 
 func (o observer) StmtExecContext(ctx context.Context,
@@ -131,7 +133,7 @@ func (o observer) StmtExecContext(ctx context.Context,
 
 func (o observer) StmtQueryContext(ctx context.Context,
 	stmt driver.StmtQueryContext,
-	query string, args []driver.NamedValue) (driver.Rows, error) {
+	query string, args []driver.NamedValue) (context.Context, driver.Rows, error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PreparedQuery")
 	defer span.Finish()
@@ -154,11 +156,11 @@ func (o observer) StmtQueryContext(ctx context.Context,
 		cmd+"-prepared",
 	).Observe(d.Seconds())
 
-	return rows, err
+	return ctx, rows, err
 }
 
 func (o observer) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx,
-	txOpts driver.TxOptions) (driver.Tx, error) {
+	txOpts driver.TxOptions) (context.Context, driver.Tx, error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Begin")
 	defer span.Finish()
@@ -178,7 +180,7 @@ func (o observer) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx,
 		"begin",
 	).Observe(d.Seconds())
 
-	return tx, err
+	return ctx, tx, err
 }
 
 func (o observer) TxCommit(ctx context.Context, tx driver.Tx) error {
