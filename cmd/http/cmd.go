@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -126,8 +125,6 @@ func main() {
 
 func startServer() {
 	logger.Info("start server")
-
-	rand.Seed(int64(time.Now().Nanosecond()))
 
 	mux := http.NewServeMux()
 
