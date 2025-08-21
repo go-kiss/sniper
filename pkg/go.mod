@@ -1,8 +1,6 @@
 module github.com/go-kiss/sniper/pkg
 
-go 1.23.0
-
-toolchain go1.24.6
+go 1.25.0
 
 require (
 	github.com/dlmiddlecote/sqlstats v1.0.2
@@ -21,7 +19,7 @@ require (
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	github.com/uber/jaeger-lib v2.4.1+incompatible
 	golang.org/x/sync v0.16.0
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/protobuf v1.36.8
 	modernc.org/sqlite v1.38.2
 )
 

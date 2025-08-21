@@ -1,8 +1,6 @@
 module sniper
 
-go 1.23.0
-
-toolchain go1.24.6
+go 1.25.0
 
 replace github.com/go-kiss/sniper/pkg => ./pkg
 
@@ -12,8 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.23.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.9.1
-	go.uber.org/automaxprocs v1.6.0
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/protobuf v1.36.8
 )
 
 require (
@@ -31,6 +28,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
+	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/sagikazarmark/locafero v0.10.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
